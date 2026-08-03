@@ -7,7 +7,7 @@ starting point for discussion. `HANDOFF.md` has the build order and the kickoff 
 ## Before you change anything
 
 ```
-npm test          # must print 53 passed, ~20s, no database setup needed
+npm test          # must print 67 passed, ~20s, no database setup needed
 ```
 
 If that is not green on a clean checkout, stop and say so. Do not "fix" it by changing tests.

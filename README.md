@@ -6,7 +6,7 @@ arithmetic. Everything else builds on top.
 
 ```
 npm install
-npm test          # 53 tests, ~20s, no database setup required
+npm test          # 67 tests, ~20s, no database setup required
 ```
 
 Tests run against real Postgres via [PGlite](https://pglite.dev) (WASM, in-process),

@@ -20,15 +20,35 @@ Codex, or anything else. They live in one file so they cannot drift apart betwee
 
 ## State
 
-Ledger core, the Next.js 16 shell, and accounts/categories CRUD are built. Still unbuilt in
-M1: capture UI, budgets, month view, and the importers (`PLAN.md` §7).
+The app is called **Notch**. Built: the ledger core, the Next.js 16 shell, accounts/categories
+CRUD (`/accounts`, `/categories`), manual capture with an offline queue (`/log`). Still unbuilt
+in M1: budgets, month view, snap/voice capture, and the importers (`PLAN.md` §7).
 
-The CRUD screens have never run against a live Postgres — there is no `.env` and no Supabase
-project yet. They are covered by PGlite tests and they compile, which is not the same thing.
+All three screens have been exercised against real Postgres and driven in a browser, not just
+covered by tests. Manual capture survives a dead connection: submissions queue in IndexedDB and
+flush on reconnect, made replay-safe by a client-minted id stored in `transactions.source_ref`
+under a partial unique index.
 
-`db/schema.sql` currently defines only `accounts`, `people`, `transactions`, `entries` and two
-views. `PLAN.md` §3 describes eleven more tables that do not exist yet. Budgets and the
-importers are blocked on that DDL being written by hand, with the balance trigger preserved.
+**Known gap:** a queued capture the server permanently rejects blocks everything queued behind
+it, silently. Nothing is lost, but nothing after it syncs either, and the user is not told.
+
+`db/schema.sql` defines `accounts`, `people`, `transactions`, `entries` and two views. `PLAN.md`
+§3 describes eleven more tables that do not exist yet. Budgets and the importers are blocked on
+that DDL being written by hand, with the balance trigger preserved.
+
+### Local database
+
+There is no Supabase project. Development runs against a throwaway container, and `.env` points
+at it:
+
+```
+docker run --name budget-app-dev-db --detach --publish 127.0.0.1:5433:5432 \
+  --env POSTGRES_USER=budget_app --env POSTGRES_PASSWORD=budget_app_dev_local \
+  --env POSTGRES_DB=budget_app postgres:17-alpine
+```
+
+Load `db/schema.sql` into it after creating it. It holds synthetic `Live *` rows from
+verification runs — no real financial data, and none should ever be put there.
 
 **Check `git log --oneline` for anything newer than this file.** The commit history is the
 current state; this section is a starting orientation and will go stale.
@@ -62,7 +82,7 @@ A Codex run started from a Claude Code session **dies when that session exits.**
 ## Verify
 
 ```
-npm test     # 53 passing, PGlite, no database setup needed
+npm test     # 67 passing, PGlite, no database setup needed
 npm run build
 npm run lint
 ```
