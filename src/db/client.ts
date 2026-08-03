@@ -22,7 +22,15 @@ function getPool(): Pool {
         "DATABASE_URL is not set. Copy .env.example to .env and point it at your Supabase database.",
       );
     }
-    pool = new Pool({ connectionString, max: 5 });
+    // Local docker Postgres has no certificate to verify; Supabase requires an
+    // encrypted connection and this app never checks in the CA it would need
+    // to fully verify one, so it trusts the connection without doing so.
+    const isLocal = /localhost|127\.0\.0\.1/.test(connectionString);
+    pool = new Pool({
+      connectionString,
+      max: 5,
+      ssl: isLocal ? undefined : { rejectUnauthorized: false },
+    });
   }
   return pool;
 }
