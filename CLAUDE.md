@@ -21,13 +21,18 @@ Codex, or anything else. They live in one file so they cannot drift apart betwee
 ## State
 
 The app is called **Notch**. Built: the ledger core, the Next.js 16 shell, accounts/categories
-CRUD (`/accounts`, `/categories`), manual capture with an offline queue (`/log`). Still unbuilt
-in M1: budgets, month view, snap/voice capture, and the importers (`PLAN.md` §7).
+CRUD (`/accounts`, `/categories`), manual capture with an offline queue (`/log`), and a read-only
+month view (`/month`). Still unbuilt in M1: budgets, snap/voice capture, and the importers
+(`PLAN.md` §7).
 
-All three screens have been exercised against real Postgres and driven in a browser, not just
+All four screens have been exercised against real Postgres and driven in a browser, not just
 covered by tests. Manual capture survives a dead connection: submissions queue in IndexedDB and
 flush on reconnect, made replay-safe by a client-minted id stored in `transactions.source_ref`
 under a partial unique index.
+
+`/month` shows actuals only — income, expenses, net, a category breakdown, and the transaction
+list for one calendar month, with prev/next navigation. No budget-vs-actual comparison yet;
+that's blocked on the `budgets` table below.
 
 **Known gap:** a queued capture the server permanently rejects blocks everything queued behind
 it, silently. Nothing is lost, but nothing after it syncs either, and the user is not told.
@@ -82,7 +87,7 @@ A Codex run started from a Claude Code session **dies when that session exits.**
 ## Verify
 
 ```
-npm test     # 67 passing, PGlite, no database setup needed
+npm test     # 72 passing, PGlite, no database setup needed
 npm run build
 npm run lint
 ```

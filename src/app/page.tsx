@@ -4,6 +4,7 @@ const NEXT_UP = [
   { href: "/log", label: "Log spending", blurb: "Capture money in and out." },
   { href: "/accounts", label: "Accounts", blurb: "Wallets, banks, cards." },
   { href: "/categories", label: "Categories", blurb: "What you spend on." },
+  { href: "/month", label: "Month", blurb: "Review this month's actuals." },
 ];
 
 export default function Home() {
