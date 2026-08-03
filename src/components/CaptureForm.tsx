@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { AccountWithBalance } from "../accounts/repo";
+import { parseCaptureDraftAction } from "../app/log/ai-actions";
+import { EMPTY_PARSE_STATE } from "../app/log/ai-action-state";
 import { captureTransactionAction } from "../app/log/actions";
 import { formatPeso, parseAmountToMinor } from "../money";
 import type { RecentTransaction } from "../transactions/capture";
@@ -30,6 +32,28 @@ function formData(capture: QueuedCapture): FormData {
   return values;
 }
 
+async function compressPhoto(file: File): Promise<File> {
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const element = new Image();
+    element.onload = () => { URL.revokeObjectURL(objectUrl); resolve(element); };
+    element.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("Could not read that photo.")); };
+    element.src = objectUrl;
+  });
+  const longestEdge = Math.max(image.naturalWidth, image.naturalHeight);
+  const scale = Math.min(1, 1600 / longestEdge);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  canvas.getContext("2d")?.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
+    (result) => result ? resolve(result) : reject(new Error("Could not compress that photo.")),
+    "image/jpeg",
+    0.85,
+  ));
+  return new File([blob], "capture.jpg", { type: "image/jpeg" });
+}
+
 export function CaptureForm({ accounts, today, initialDirection, recent: initialRecent }: { accounts: AccountWithBalance[]; today: string; initialDirection: Direction; recent: RecentTransaction[] }) {
   const direction = initialDirection;
   const [values, setValues] = useState<FormValues>({ direction, occurredAt: today, payee: "", amount: "", categoryId: "", accountId: "", memo: "" });
@@ -38,6 +62,10 @@ export function CaptureForm({ accounts, today, initialDirection, recent: initial
   const [pending, setPending] = useState(false);
   const [recent, setRecent] = useState<DisplayTransaction[]>(initialRecent);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [description, setDescription] = useState("");
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [parsePending, setParsePending] = useState(false);
   const payeeRef = useRef<HTMLInputElement>(null);
   const handledSavedId = useRef<string | null>(null);
   const storage = useMemo(() => new IndexedDbCaptureStorage(), []);
@@ -128,6 +156,33 @@ export function CaptureForm({ accounts, today, initialDirection, recent: initial
     }
   }
 
+  async function parseCapture() {
+    if (parsePending) return;
+    setParsePending(true);
+    setParseError(null);
+    try {
+      const data = new FormData();
+      if (photo) data.set("photo", await compressPhoto(photo));
+      data.set("text", description);
+      const result = await parseCaptureDraftAction(EMPTY_PARSE_STATE, data);
+      if (result.error || !result.draft) {
+        setParseError(result.error ?? "Could not read that capture. Try again.");
+        return;
+      }
+      setValues((current) => ({
+        ...current,
+        payee: result.draft!.payee,
+        amount: result.draft!.amount,
+        occurredAt: result.draft!.occurredAt,
+        categoryId: result.draft!.categoryId,
+      }));
+    } catch (parseFailure) {
+      setParseError(parseFailure instanceof Error ? parseFailure.message : "Could not prepare that photo.");
+    } finally {
+      setParsePending(false);
+    }
+  }
+
   return <>
     <form onSubmit={submit} className="border border-slate-800 bg-slate-900/40 p-5 sm:p-6">
       <div className="mb-5 flex border-b border-slate-700">
@@ -135,6 +190,22 @@ export function CaptureForm({ accounts, today, initialDirection, recent: initial
           {choice === "out" ? "Money out" : "Money in"}
         </a>)}
       </div>
+      {direction === "out" && <section className="mb-5 rounded-md border border-slate-700 bg-slate-950/40 p-4">
+        <h2 className="text-sm font-medium text-slate-100">Snap or describe it</h2>
+        <p className="mt-1 text-sm text-slate-400">We&apos;ll prefill the details. Check the category and choose where you paid from before saving.</p>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <label className="grid gap-1.5 text-sm text-slate-300">Receipt photo
+            <input name="photo" type="file" accept="image/*" capture="environment" onChange={(event) => setPhoto(event.target.files?.[0] ?? null)} className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-300 file:mr-3 file:border-0 file:bg-transparent file:text-slate-300" />
+          </label>
+          <label className="grid min-w-52 flex-1 gap-1.5 text-sm text-slate-300">Short description
+            <input name="text" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="340 lunch at Jollibee" className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 placeholder:text-slate-600" />
+          </label>
+          <button type="button" onClick={() => void parseCapture()} disabled={parsePending} className="rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:border-slate-500 hover:text-slate-100 disabled:opacity-60">
+            {parsePending ? "Reading…" : "Parse"}
+          </button>
+        </div>
+        {parseError && <p role="alert" className="mt-3 text-sm text-red-400">{parseError}</p>}
+      </section>}
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1.5 text-sm text-slate-300">Date
           <input name="occurredAt" type="date" required value={values.occurredAt} onChange={(event) => setValues({ ...values, occurredAt: event.target.value })} className="border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" />

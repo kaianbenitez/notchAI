@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
     // which would trace files from outside this project.
     root: import.meta.dirname,
   },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "8mb",
+    },
+  },
 };
 
 export default nextConfig;
