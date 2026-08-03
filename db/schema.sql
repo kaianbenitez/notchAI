@@ -192,3 +192,22 @@ select a.id   as category_id,
  where a.role = 'expense'
    and t.status <> 'duplicate_merged'
  group by a.id, a.user_id, a.name, t.occurred_at;
+
+create table budgets (
+  id                uuid primary key default gen_random_uuid(),
+  user_id           uuid not null,
+  account_id        uuid not null references accounts (id) on delete restrict,
+  amount_minor      bigint not null,
+  currency          char(3) not null default 'PHP',
+  rollover_enabled  boolean not null default false,
+  starts_on         date not null,
+  archived_at       timestamptz,
+  created_at        timestamptz not null default now(),
+
+  constraint budget_amount_positive check (amount_minor > 0),
+  constraint budget_starts_on_first_of_month check (extract(day from starts_on) = 1)
+);
+
+-- Only one live budget per category at a time. Archive and create a new one to change history.
+create unique index budgets_user_account_active_idx on budgets (user_id, account_id)
+  where archived_at is null;

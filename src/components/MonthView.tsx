@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { formatPeso } from "../money";
 import type { MonthCategoryTotal, MonthSummary, MonthTransaction } from "../transactions/month";
+import type { CategoryBudgetProgress } from "../budgets/progress";
 
 interface Props {
   month: string;
@@ -10,6 +11,7 @@ interface Props {
   summary: MonthSummary;
   categories: MonthCategoryTotal[];
   transactions: MonthTransaction[];
+  budgets: CategoryBudgetProgress[];
 }
 
 const MONTH_NAMES = [
@@ -45,7 +47,7 @@ function CategoryGroup({ title, categories }: { title: string; categories: Month
   );
 }
 
-export function MonthView({ month, previousMonth, nextMonth, summary, categories, transactions }: Props) {
+export function MonthView({ month, previousMonth, nextMonth, summary, categories, transactions, budgets }: Props) {
   const expenses = categories.filter((category) => category.role === "expense");
   const income = categories.filter((category) => category.role === "income");
 
@@ -102,6 +104,22 @@ export function MonthView({ month, previousMonth, nextMonth, summary, categories
             </ul>
           </section>
         </>
+      )}
+
+      {budgets.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-lg font-medium text-slate-100">Budgets</h2>
+          <ul className="mt-3 divide-y divide-slate-800 rounded-lg border border-slate-800">
+            {budgets.map((budget) => (
+              <li key={budget.budgetId} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm">
+                <span className="min-w-32 flex-1 text-slate-200">{budget.categoryName}</span>
+                <span className="tabular-nums text-slate-400">Budget {formatPeso(budget.budgetedMinor)}</span>
+                <span className="tabular-nums text-slate-400">Spent {formatPeso(budget.spentMinor)}</span>
+                <span className={`tabular-nums ${budget.remainingMinor < 0 ? "text-rose-400" : "text-emerald-400"}`}>{formatPeso(budget.remainingMinor)} left</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </main>
   );

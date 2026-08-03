@@ -2,6 +2,7 @@ import { currentUserId } from "../../auth";
 import { MonthView } from "../../components/MonthView";
 import { withDb } from "../../db/client";
 import { getMonthSummary, listMonthCategoryTotals, listMonthTransactions } from "../../transactions/month";
+import { getMonthBudgetProgress } from "../../budgets/progress";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +28,11 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
   const params = await searchParams;
   const month = validMonth(params.m) ? params.m : manilaMonth();
   const userId = currentUserId();
-  const [summary, categories, transactions] = await withDb((sql) => Promise.all([
+  const [summary, categories, transactions, budgets] = await withDb((sql) => Promise.all([
     getMonthSummary(sql, userId, month),
     listMonthCategoryTotals(sql, userId, month),
     listMonthTransactions(sql, userId, month),
+    getMonthBudgetProgress(sql, userId, month),
   ]));
 
   return (
@@ -41,6 +43,7 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
       summary={summary}
       categories={categories}
       transactions={transactions}
+      budgets={budgets}
     />
   );
 }

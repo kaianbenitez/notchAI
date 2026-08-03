@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
   bigint,
+  boolean,
   char,
   check,
   date,
@@ -160,3 +161,23 @@ export const categorySpend = pgView("category_spend", {
   occurredAt: date("occurred_at"),
   spentMinor: bigint("spent_minor", { mode: "bigint" }),
 }).existing();
+
+export const budgets = pgTable(
+  "budgets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "restrict" }),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    currency: char("currency", { length: 3 }).notNull().default("PHP"),
+    rolloverEnabled: boolean("rollover_enabled").notNull().default(false),
+    startsOn: date("starts_on").notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("budget_amount_positive", sql`${table.amountMinor} > 0`),
+    check("budget_starts_on_first_of_month", sql`extract(day from ${table.startsOn}) = 1`),
+    uniqueIndex("budgets_user_account_active_idx").on(table.userId, table.accountId).where(sql`${table.archivedAt} is null`),
+  ],
+);

@@ -22,7 +22,7 @@ Codex, or anything else. They live in one file so they cannot drift apart betwee
 
 The app is called **Notch**. Built: the ledger core, the Next.js 16 shell, accounts/categories
 CRUD (`/accounts`, `/categories`), manual capture with an offline queue (`/log`), and a read-only
-month view (`/month`). Still unbuilt in M1: budgets, snap/voice capture, and the importers
+month view (`/month`). Still unbuilt in M1: snap/voice capture, and the importers
 (`PLAN.md` §7).
 
 All four screens have been exercised against real Postgres and driven in a browser, not just
@@ -31,8 +31,11 @@ flush on reconnect, made replay-safe by a client-minted id stored in `transactio
 under a partial unique index.
 
 `/month` shows actuals only — income, expenses, net, a category breakdown, and the transaction
-list for one calendar month, with prev/next navigation. No budget-vs-actual comparison yet;
-that's blocked on the `budgets` table below.
+list for one calendar month, with prev/next navigation. It also compares each budgeted category's
+monthly budget, actual spend, and remaining amount.
+
+Budgets are flat monthly expense-category amounts, with optional rollover that carries both
+unspent funds and overspending into the next month. `/budgets` provides their CRUD UI.
 
 **Known gap:** a queued capture the server permanently rejects blocks everything queued behind
 it, silently. Nothing is lost, but nothing after it syncs either, and the user is not told.
