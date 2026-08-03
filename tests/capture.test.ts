@@ -87,4 +87,26 @@ describe("manual capture", () => {
     expect(recent.map((transaction) => transaction.payee)).toEqual(["Last", "First"]);
     expect(recent[0]).toMatchObject({ category: "Dining", account: "Cash", amountMinor: 5000 });
   });
+
+  it("treats the same client id as an already saved capture", async () => {
+    const { cash, dining } = await fixtures();
+    const first = await captureTransaction(db, input({ accountId: cash.id, categoryId: dining.id, clientId: "client-attempt-1" }));
+    const second = await captureTransaction(db, input({ accountId: cash.id, categoryId: dining.id, clientId: "client-attempt-1" }));
+    expect(second).toBe(first);
+    expect(await countRows("transactions")).toBe(1);
+    expect(await countRows("entries")).toBe(2);
+  });
+
+  it("accepts separate client ids as separate captures", async () => {
+    const { cash, dining } = await fixtures();
+    await captureTransaction(db, input({ accountId: cash.id, categoryId: dining.id, clientId: "client-attempt-1" }));
+    await captureTransaction(db, input({ accountId: cash.id, categoryId: dining.id, clientId: "client-attempt-2" }));
+    expect(await countRows("transactions")).toBe(2);
+  });
+
+  it("still accepts a capture without a client id", async () => {
+    const { cash, dining } = await fixtures();
+    await captureTransaction(db, input({ accountId: cash.id, categoryId: dining.id }));
+    expect(await countRows("transactions")).toBe(1);
+  });
 });

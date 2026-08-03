@@ -21,6 +21,8 @@ export interface CaptureInput {
   categoryId: string;
   accountId: string;
   memo?: string;
+  /** Client-minted offline queue id. Not importer deduplication. */
+  clientId?: string;
 }
 
 interface AccountRow {
@@ -62,6 +64,15 @@ export async function captureTransaction(sql: Sql, input: CaptureInput): Promise
     throw new CaptureError("date must be YYYY-MM-DD");
   }
 
+  const sourceRef = input.clientId?.trim() || null;
+  if (sourceRef) {
+    const { rows } = await sql.query<{ id: string }>(
+      `select id from transactions where user_id = $1 and source_ref = $2`,
+      [input.userId, sourceRef],
+    );
+    if (rows[0]) return rows[0].id;
+  }
+
   const payee = requiredText(input.payee, input.direction === "out" ? "payee" : "payer/source");
   const amountMinor = parseAmountToMinor(input.amount);
   if (amountMinor <= 0) throw new CaptureError("amount must be greater than zero");
@@ -85,26 +96,41 @@ export async function captureTransaction(sql: Sql, input: CaptureInput): Promise
     );
   }
 
-  return postTransaction(
-    sql,
-    {
-      userId: input.userId,
-      occurredAt: input.occurredAt,
-      payee,
-      memo: input.memo?.trim() || null,
-      source: "manual",
-      status: "confirmed",
-    },
-    input.direction === "out"
-      ? [
-          { accountId: account.id, amountMinor: -amountMinor },
-          { accountId: category.id, amountMinor },
-        ]
-      : [
-          { accountId: account.id, amountMinor },
-          { accountId: category.id, amountMinor: -amountMinor },
-        ],
-  );
+  try {
+    return await postTransaction(
+      sql,
+      {
+        userId: input.userId,
+        occurredAt: input.occurredAt,
+        payee,
+        memo: input.memo?.trim() || null,
+        source: "manual",
+        status: "confirmed",
+        sourceRef,
+      },
+      input.direction === "out"
+        ? [
+            { accountId: account.id, amountMinor: -amountMinor },
+            { accountId: category.id, amountMinor },
+          ]
+        : [
+            { accountId: account.id, amountMinor },
+            { accountId: category.id, amountMinor: -amountMinor },
+          ],
+    );
+  } catch (error) {
+    // A previous request may have committed after this request's initial
+    // lookup. The partial unique index is the race-safe backstop; a retry
+    // reads that transaction back rather than reporting a false failure.
+    if (sourceRef && (error as { code?: string }).code === "23505") {
+      const { rows } = await sql.query<{ id: string }>(
+        `select id from transactions where user_id = $1 and source_ref = $2`,
+        [input.userId, sourceRef],
+      );
+      if (rows[0]) return rows[0].id;
+    }
+    throw error;
+  }
 }
 
 /**
@@ -158,13 +184,7 @@ export async function listRecentTransactions(
   );
   return rows.map((row) => ({
     id: row.id,
-    // pg parses a DATE as midnight UTC. Format it in the app's timezone rather
-    // than slicing UTC, which would display the previous day in Manila.
-    occurredAt: typeof row.occurred_at === "string"
-      ? row.occurred_at.slice(0, 10)
-      : new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit",
-        }).format(row.occurred_at),
+    occurredAt: toIsoDate(row.occurred_at),
     payee: row.payee,
     category: row.category,
     account: row.account,

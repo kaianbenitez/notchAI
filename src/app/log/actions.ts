@@ -18,7 +18,7 @@ export async function captureTransactionAction(
   form: FormData,
 ): Promise<ActionState> {
   try {
-    await withDb((sql) => captureTransaction(sql, {
+    const transactionId = await withDb((sql) => captureTransaction(sql, {
       userId: currentUserId(),
       direction: field(form, "direction") === "in" ? "in" : "out",
       occurredAt: field(form, "occurredAt"),
@@ -27,14 +27,14 @@ export async function captureTransactionAction(
       categoryId: field(form, "categoryId"),
       accountId: field(form, "accountId"),
       memo: field(form, "memo"),
+      clientId: field(form, "clientId"),
     }));
+    revalidatePath("/log");
+    return { error: null, transactionId };
   } catch (error) {
     if (error instanceof CaptureError || error instanceof AmountParseError) {
-      return { error: error.message };
+      return { error: error.message, transactionId: null };
     }
-    console.error("manual capture failed", error);
-    return { error: "Something went wrong. Check the server log." };
+    throw error;
   }
-  revalidatePath("/log");
-  return { error: null };
 }

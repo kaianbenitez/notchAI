@@ -13,6 +13,7 @@ import {
   real,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -112,6 +113,7 @@ export const transactions = pgTable(
     index("txn_user_date_idx").on(table.userId, table.occurredAt.desc()),
     index("txn_dedupe_idx").on(table.userId, table.dedupeHash).where(sql`${table.dedupeHash} is not null`),
     index("txn_reduced_idx").on(table.userId, table.reducedKey).where(sql`${table.reducedKey} is not null`),
+    uniqueIndex("txn_user_source_ref_unique_idx").on(table.userId, table.sourceRef).where(sql`${table.sourceRef} is not null`),
   ],
 );
 

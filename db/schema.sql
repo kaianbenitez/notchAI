@@ -105,6 +105,9 @@ create index txn_dedupe_idx          on transactions (user_id, dedupe_hash)
   where dedupe_hash is not null;
 create index txn_reduced_idx         on transactions (user_id, reduced_key)
   where reduced_key is not null;
+-- Client-minted capture ids make offline queue replays idempotent.
+create unique index txn_user_source_ref_unique_idx on transactions (user_id, source_ref)
+  where source_ref is not null;
 
 -- ---------------------------------------------------------------------------
 -- The invariant everything else depends on: entries sum to zero, in PHP.
