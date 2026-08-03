@@ -21,7 +21,7 @@ group spend, bill reminders, spending insights — while keeping AI snap/receipt
 ## 2. Stack — all free tier
 
 ```
-Next.js 15 (App Router) ──► Vercel Hobby (free)
+Next.js 16 (App Router) ──► Vercel Hobby (free)
 Drizzle ORM ─────────────► Supabase Postgres (free: 500MB, pg_cron, RLS)
 Supabase Auth ───────────► email magic link + Google
 Cloudflare R2 ───────────► receipt images (10GB free, zero egress)

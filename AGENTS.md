@@ -39,7 +39,7 @@ milestones because they seem easy.
 M1 remaining: accounts/categories CRUD, capture UI (snap/voice/manual), budgets, month view,
 CSV import of old history, and the password-protected statement importer.
 
-Stack: Next.js 15 App Router, TypeScript, Drizzle ORM, Supabase Postgres, Tailwind.
+Stack: Next.js 16 App Router, TypeScript, Drizzle ORM, Supabase Postgres, Tailwind.
 Installable PWA — no native app, no App Store. Tests run on PGlite, so no live database is
 needed to work.
 

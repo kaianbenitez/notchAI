@@ -18,7 +18,7 @@ Paste `PLAN.md` and `README.md`, then:
 > You are implementing the personal budgeting app specified in the attached PLAN.md. Read it
 > completely before writing code.
 >
-> Stack: Next.js 15 App Router, TypeScript, Drizzle ORM, Supabase Postgres, Tailwind. Installable
+> Stack: Next.js 16 App Router, TypeScript, Drizzle ORM, Supabase Postgres, Tailwind. Installable
 > PWA — no native app.
 >
 > The ledger core already exists and its tests pass: `db/schema.sql`, `src/ledger/`,
