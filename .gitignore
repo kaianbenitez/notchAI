@@ -22,3 +22,6 @@ Thumbs.db
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Personal notes, never committed
+.local/
