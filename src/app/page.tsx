@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 const NEXT_UP = [
+  { href: "/log", label: "Log spending", blurb: "Capture money in and out." },
   { href: "/accounts", label: "Accounts", blurb: "Wallets, banks, cards." },
   { href: "/categories", label: "Categories", blurb: "What you spend on." },
 ];
@@ -8,14 +9,12 @@ const NEXT_UP = [
 export default function Home() {
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
-      <p className="text-sm font-medium uppercase tracking-[0.2em] text-emerald-400">
-        Budget app
-      </p>
-      <h1 className="mt-4 text-4xl font-semibold tracking-tight">
-        Set up your accounts.
+      <h1 className="text-4xl font-semibold tracking-tight">
+        Notch keeps track of where your money goes.
       </h1>
+      <p className="mt-3 max-w-xl text-slate-400">Start with a quick transaction, then keep your accounts and categories in order.</p>
 
-      <div className="mt-10 grid gap-4 sm:grid-cols-2">
+      <div className="mt-10 grid gap-4 sm:grid-cols-3">
         {NEXT_UP.map((item) => (
           <Link
             key={item.href}

@@ -1,4 +1,4 @@
-# budget-app — ledger core
+# Notch — ledger core
 
 The foundation for the app specified in [PLAN.md](./PLAN.md). This is M1's first
 piece: the double-entry ledger, the invariant that protects it, and the split

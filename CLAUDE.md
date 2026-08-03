@@ -1,4 +1,4 @@
-# budget-app
+# Notch
 
 Personal budgeting app, Philippines/PHP, single user. Installable PWA, no native app.
 
