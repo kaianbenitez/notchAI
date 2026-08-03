@@ -1,0 +1,21 @@
+node_modules/
+dist/
+.next/
+coverage/
+
+# Secrets — this repo must never carry credentials
+.env
+.env.*
+!.env.example
+
+# Real financial data. Fixtures must be redacted; see GEMINI.md.
+*.statement.pdf
+*.statement.txt
+statements/
+receipts/
+cc-tracker-export*.json
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.log
