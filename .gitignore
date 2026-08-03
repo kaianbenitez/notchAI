@@ -8,7 +8,7 @@ coverage/
 .env.*
 !.env.example
 
-# Real financial data. Fixtures must be redacted; see GEMINI.md.
+# Real financial data. Fixtures must be redacted; see AGENTS.md.
 *.statement.pdf
 *.statement.txt
 statements/
