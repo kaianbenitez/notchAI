@@ -9,14 +9,13 @@
 import { useActionState, useState } from "react";
 
 import type { AccountWithBalance } from "../accounts/repo";
+import { NO_ERROR, type ActionState } from "../app/accounts/action-state";
 import {
   archiveAccountAction,
   createAccountAction,
   deleteAccountAction,
   renameAccountAction,
   unarchiveAccountAction,
-  NO_ERROR,
-  type ActionState,
 } from "../app/accounts/actions";
 import { formatPeso } from "../money";
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { NO_ERROR, type ActionState } from "./action-state";
 import {
   AccountError,
   archiveAccount,
@@ -14,12 +15,6 @@ import {
 } from "../../accounts/repo";
 import { currentUserId } from "../../auth";
 import { withDb } from "../../db/client";
-
-export interface ActionState {
-  error: string | null;
-}
-
-export const NO_ERROR: ActionState = { error: null };
 
 const ROLES: AccountRole[] = ["asset", "liability", "expense", "income", "equity"];
 const KINDS: AccountKind[] = [

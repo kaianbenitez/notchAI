@@ -45,6 +45,9 @@ current state; this section is a starting orientation and will go stale.
 transaction is silently lost. Go through `withDb` in `src/db/client.ts`, which checks out a
 single client for the callback.
 
+**A `"use server"` module may export only async functions.** Next silently turns other exports
+into actions; put constants shared with client components in a separate plain module.
+
 ## Handing work to Codex
 
 Codex's default sandbox does not work on this machine — `npm install` times out and file
