@@ -30,6 +30,17 @@ importers are blocked on that DDL being written by hand, with the balance trigge
 **Check `git log --oneline` for anything newer than this file.** The commit history is the
 current state; this section is a starting orientation and will go stale.
 
+## Handing work to Codex
+
+Codex's default sandbox does not work on this machine — `npm install` times out and file
+writes fail outright, with no partial state left behind. Both failures are silent until it
+reports back. Use `sandbox: danger-full-access` for any task that installs packages or writes
+files, and be aware that this drops its confinement to the repo: verify afterward that
+nothing outside the project was touched.
+
+A Codex run started from a Claude Code session **dies when that session exits.** Do not
+`/clear` or close the terminal while one is in flight.
+
 ## Verify
 
 ```
