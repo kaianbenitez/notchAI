@@ -6,7 +6,7 @@ arithmetic. Everything else builds on top.
 
 ```
 npm install
-npm test          # 18 tests, ~18s, no database setup required
+npm test          # 53 tests, ~20s, no database setup required
 ```
 
 Tests run against real Postgres via [PGlite](https://pglite.dev) (WASM, in-process),
@@ -19,6 +19,8 @@ so triggers and deferred constraints are exercised for real — not mocked.
 | `db/schema.sql` | **Authoritative DDL.** Tables, the balance trigger, read views. |
 | `src/ledger/post.ts` | The only write path into the ledger. |
 | `src/ledger/split.ts` | Split arithmetic. Pure, no database. |
+| `src/money.ts` | Text ↔ centavos. Parses digit-wise; no float is ever built. |
+| `src/accounts/repo.ts` | Accounts and categories — one table, per PLAN §3. |
 | `tests/ledger.test.ts` | Proves the invariants below. |
 
 ## The two rules

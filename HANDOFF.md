@@ -23,7 +23,7 @@ Paste `PLAN.md` and `README.md`, then:
 >
 > The ledger core already exists and its tests pass: `db/schema.sql`, `src/ledger/`,
 > `tests/ledger.test.ts`. **Read them first. Do not rewrite or "simplify" them.** Run `npm test`
-> and confirm 18 passing before you change anything.
+> and confirm it is green before you change anything.
 >
 > Build the rest of **M1 only** (see §7). Do not start M2–M6.
 >
