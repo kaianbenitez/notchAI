@@ -91,6 +91,15 @@ export const people = pgTable("people", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const ingestEvents = pgTable("ingest_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull(),
+  kind: txnSource("kind").notNull(),
+  accountId: uuid("account_id").references(() => accounts.id, { onDelete: "restrict" }),
+  rawPayload: text("raw_payload").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const transactions = pgTable(
   "transactions",
   {
@@ -107,6 +116,7 @@ export const transactions = pgTable(
     reducedKey: text("reduced_key"),
     seenUnbilledAt: timestamp("seen_unbilled_at", { withTimezone: true }),
     postedAt: timestamp("posted_at", { withTimezone: true }),
+    ingestEventId: uuid("ingest_event_id").references(() => ingestEvents.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -114,6 +124,7 @@ export const transactions = pgTable(
     index("txn_user_date_idx").on(table.userId, table.occurredAt.desc()),
     index("txn_dedupe_idx").on(table.userId, table.dedupeHash).where(sql`${table.dedupeHash} is not null`),
     index("txn_reduced_idx").on(table.userId, table.reducedKey).where(sql`${table.reducedKey} is not null`),
+    index("txn_ingest_event_idx").on(table.ingestEventId),
     uniqueIndex("txn_user_source_ref_unique_idx").on(table.userId, table.sourceRef).where(sql`${table.sourceRef} is not null`),
   ],
 );

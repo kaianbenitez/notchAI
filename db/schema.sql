@@ -49,6 +49,17 @@ create table people (
   created_at            timestamptz not null default now()
 );
 
+-- Immutable source material for imports. Raw payloads are retained so parser
+-- changes can be replayed against history without losing the original input.
+create table ingest_events (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null,
+  kind        txn_source not null,
+  account_id  uuid references accounts (id) on delete restrict,
+  raw_payload text not null,
+  created_at  timestamptz not null default now()
+);
+
 create table transactions (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null,
@@ -71,6 +82,7 @@ create table transactions (
   -- is never double-counted.
   seen_unbilled_at timestamptz,
   posted_at        timestamptz,
+  ingest_event_id  uuid references ingest_events (id) on delete set null,
 
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
@@ -105,6 +117,7 @@ create index txn_dedupe_idx          on transactions (user_id, dedupe_hash)
   where dedupe_hash is not null;
 create index txn_reduced_idx         on transactions (user_id, reduced_key)
   where reduced_key is not null;
+create index txn_ingest_event_idx    on transactions (ingest_event_id);
 -- Client-minted capture ids make offline queue replays idempotent.
 create unique index txn_user_source_ref_unique_idx on transactions (user_id, source_ref)
   where source_ref is not null;
