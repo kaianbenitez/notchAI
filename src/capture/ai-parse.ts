@@ -82,7 +82,7 @@ export async function callGeminiForCapture(input: {
   if (!input.imageBase64 && !input.text?.trim()) throw new Error("Add a receipt photo or a short description first.");
 
   const model = new GoogleGenerativeAI(key).getGenerativeModel({
-    model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+    model: process.env.GEMINI_MODEL || "gemini-flash-latest",
     generationConfig: { responseMimeType: "application/json", responseSchema: RESPONSE_SCHEMA },
   });
   const prompt = "Read this personal expense capture. Return only the requested JSON: payee or merchant; amountText as a plain decimal PHP peso string (for example 340.00); occurredAt as YYYY-MM-DD only if present; categoryGuess as one or two words; and confidence from 0 to 1. Use null for information that is absent or unclear.";
