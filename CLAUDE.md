@@ -7,6 +7,24 @@ Codex, or anything else. They live in one file so they cannot drift apart betwee
 
 @AGENTS.md
 
+## Workflow: Claude Code plans and audits, Codex implements
+
+This is standing, not a per-task choice. For every non-trivial change in this repo:
+
+1. **Claude Code plans.** Read the relevant code first, then write a structured execution
+   contract for Codex: goal, exact files/areas in scope, explicit acceptance criteria,
+   constraints (conventions below, non-negotiables in `AGENTS.md`), and the verification
+   commands to run.
+2. **Codex implements.** Hand the contract to the `codex` MCP server. Never have Claude Code
+   write the actual diff for a feature or fix — that is Codex's job.
+3. **Claude Code audits.** Read Codex's real diff (not just its self-reported summary),
+   independently rerun `npm test` / `npm run build` / `npm run lint`, and check the change
+   against the contract before calling anything done. An agent's summary of what it did is not
+   proof of what it did.
+
+Exploratory design, architecture calls, unclear-root-cause debugging, and the final diff review
+stay with Claude Code. Mechanical implementation does not.
+
 ## Where things are
 
 | File | What it is |
@@ -21,9 +39,12 @@ Codex, or anything else. They live in one file so they cannot drift apart betwee
 ## State
 
 The app is called **Notch**. Built: the ledger core, the Next.js 16 shell, accounts/categories
-CRUD (`/accounts`, `/categories`), manual capture with an offline queue (`/log`), and a read-only
-month view (`/month`). Still unbuilt in M1: snap/voice capture, and the importers
-(`PLAN.md` §7).
+CRUD (`/accounts`, `/categories`), manual capture with an offline queue (`/log`), AI-assisted
+receipt-photo/text capture, a read-only month view with budget tracking (`/month`, `/budgets`),
+a password-protected statement PDF importer (`/import`), a changelog (`/changelog`), and a
+one-off script that imported the user's full transaction history from their old app's CSV export
+(`scripts/import-csv-history.ts`). Still unbuilt in M1: voice capture (`PLAN.md` §5 item 3, text
+only for now).
 
 All four screens have been exercised against real Postgres and driven in a browser, not just
 covered by tests. Manual capture survives a dead connection: submissions queue in IndexedDB and
