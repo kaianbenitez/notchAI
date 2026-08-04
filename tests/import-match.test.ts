@@ -39,6 +39,15 @@ describe("statement matching", () => {
     expect(classifyMatch(0.8)).toBe("auto");
   });
 
+  it("keeps an amount, date, and account match at the auto threshold despite float rounding", () => {
+    const score = matchScore(
+      { ...statement, normalizedMerchant: "JOLLIBEE SM NORTH" },
+      { ...statement, normalizedMerchant: "Jollibee" },
+    );
+    expect(score).toBeCloseTo(0.8);
+    expect(classifyMatch(score)).toBe("auto");
+  });
+
   it("adds the same-account score and produces the merchantless reduced key", () => {
     expect(matchScore(statement, { ...statement, normalizedMerchant: "Other", occurredAt: "2026-07-01", amountMinor: 1 })).toBe(0.1);
     expect(reducedKey(10_500, "2026-08-10", "account-a")).toBe("10500|2026-08-10|account-a");

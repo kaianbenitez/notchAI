@@ -78,7 +78,10 @@ export function matchScore(statementRow: MatchableStatementRow, candidateTransac
 }
 
 export function classifyMatch(score: number): "auto" | "suggested" | "none" {
-  if (score >= 0.8) return "auto";
-  if (score >= 0.5) return "suggested";
+  // The score is a sum of decimal weights. JavaScript may represent the
+  // mathematical 0.8 as 0.7999999999999999, which must not demote an auto-match.
+  const epsilon = 1e-9;
+  if (score >= 0.8 - epsilon) return "auto";
+  if (score >= 0.5 - epsilon) return "suggested";
   return "none";
 }
