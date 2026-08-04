@@ -1,6 +1,10 @@
 export const CHANGELOG_ENTRIES: { date: string; summary: string }[] = [
   {
     date: "2026-08-05",
+    summary: "The Log page can now take dictation — tap Speak next to the description field and say what you spent instead of typing it, then check the details as usual before saving.",
+  },
+  {
+    date: "2026-08-05",
     summary: "Brought in your full transaction history from the old budgeting app — 527 entries going back to January, across all 14 accounts and 13 categories, with foreign-currency entries converted correctly.",
   },
   {
