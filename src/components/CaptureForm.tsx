@@ -14,6 +14,23 @@ import { OfflineCaptureQueue, type QueuedCapture } from "../transactions/offline
 type Direction = "out" | "in";
 type FormValues = Omit<QueuedCapture, "id" | "queuedAt">;
 type DisplayTransaction = RecentTransaction & { pending?: boolean; clientId?: string; pendingAmount?: string };
+type SpeechRecognitionResult = { 0?: { transcript: string } };
+type SpeechRecognitionEvent = { results: { [index: number]: SpeechRecognitionResult }; resultIndex: number };
+type SpeechRecognitionInstance = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start: () => void;
+  abort: () => void;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+};
+type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
+type SpeechRecognitionWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+};
 
 function accountLabel(account: AccountWithBalance): string {
   return account.name;
@@ -66,8 +83,12 @@ export function CaptureForm({ accounts, today, initialDirection, recent: initial
   const [description, setDescription] = useState("");
   const [parseError, setParseError] = useState<string | null>(null);
   const [parsePending, setParsePending] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [speechListening, setSpeechListening] = useState(false);
+  const [speechError, setSpeechError] = useState<string | null>(null);
   const payeeRef = useRef<HTMLInputElement>(null);
   const handledSavedId = useRef<string | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const storage = useMemo(() => new IndexedDbCaptureStorage(), []);
   const queue = useMemo(() => new OfflineCaptureQueue(storage), [storage]);
   const categories = accounts.filter((a) => a.role === (direction === "out" ? "expense" : "income"));
@@ -99,6 +120,21 @@ export function CaptureForm({ accounts, today, initialDirection, recent: initial
     setPending(false);
     (payeeRef.current as { focus?: () => void } | null)?.focus?.();
   }, [savedId]);
+
+  useEffect(() => {
+    const speechWindow = window as SpeechRecognitionWindow;
+    const timeout = window.setTimeout(() => setSpeechSupported(Boolean(speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition)), 0);
+    return () => {
+      window.clearTimeout(timeout);
+      const recognition = recognitionRef.current;
+      if (!recognition) return;
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      recognition.abort();
+      recognitionRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -183,6 +219,40 @@ export function CaptureForm({ accounts, today, initialDirection, recent: initial
     }
   }
 
+  const startSpeechRecognition = useCallback(() => {
+    if (speechListening) return;
+    const speechWindow = window as SpeechRecognitionWindow;
+    const SpeechRecognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    setSpeechError(null);
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-PH";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.onresult = (event) => {
+      const transcript = event.results[event.resultIndex]?.[0]?.transcript.trim();
+      if (transcript) setDescription(transcript);
+    };
+    recognition.onerror = (event) => {
+      setSpeechError(event.error === "not-allowed" ? "Microphone access was denied." : "Could not hear you. Try again.");
+      setSpeechListening(false);
+    };
+    recognition.onend = () => {
+      setSpeechListening(false);
+      recognitionRef.current = null;
+    };
+    recognitionRef.current = recognition;
+    setSpeechListening(true);
+    try {
+      recognition.start();
+    } catch {
+      recognitionRef.current = null;
+      setSpeechListening(false);
+      setSpeechError("Could not start listening. Try again.");
+    }
+  }, [speechListening]);
+
   return <>
     <form onSubmit={submit} className="border border-slate-800 bg-slate-900/40 p-5 sm:p-6">
       <div className="mb-5 flex border-b border-slate-700">
@@ -200,10 +270,14 @@ export function CaptureForm({ accounts, today, initialDirection, recent: initial
           <label className="grid min-w-52 flex-1 gap-1.5 text-sm text-slate-300">Short description
             <input name="text" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="340 lunch at Jollibee" className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 placeholder:text-slate-600" />
           </label>
+          {speechSupported && <button type="button" onClick={startSpeechRecognition} disabled={speechListening} className="rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:border-slate-500 hover:text-slate-100 disabled:opacity-60">
+            {speechListening ? "Listening…" : "Speak"}
+          </button>}
           <button type="button" onClick={() => void parseCapture()} disabled={parsePending} className="rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:border-slate-500 hover:text-slate-100 disabled:opacity-60">
             {parsePending ? "Reading…" : "Parse"}
           </button>
         </div>
+        {speechError && <p role="alert" className="mt-3 text-sm text-red-400">{speechError}</p>}
         {parseError && <p role="alert" className="mt-3 text-sm text-red-400">{parseError}</p>}
       </section>}
       <div className="grid gap-4 sm:grid-cols-2">
