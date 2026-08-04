@@ -15,6 +15,7 @@ const NAV = [
   { href: "/month", label: "Month" },
   { href: "/budgets", label: "Budgets" },
   { href: "/import", label: "Import" },
+  { href: "/changelog", label: "Changelog" },
 ];
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
