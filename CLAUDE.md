@@ -65,10 +65,23 @@ it, silently. Nothing is lost, but nothing after it syncs either, and the user i
 §3 describes eleven more tables that do not exist yet. Budgets and the importers are blocked on
 that DDL being written by hand, with the balance trigger preserved.
 
+### Deployment and databases
+
+The app is live on Vercel at https://notch-ai.vercel.app, auto-deploying from `origin/main` with
+no repo-side config (no `vercel.json`, no `.vercel/`, no workflow file — Vercel's GitHub
+integration needs none of that). It's a separate Supabase Postgres project
+(`NEXT_PUBLIC_SUPABASE_URL`, anon key, and service role key are already in `.env`).
+
+**Local dev does not talk to Supabase.** `.env`'s `DATABASE_URL` points at a throwaway local
+container instead, so day-to-day work never touches production data. This means local and
+production databases can silently diverge — e.g. the CSV history import
+(`scripts/import-csv-history.ts`) has only ever been run against the local container; production
+was still empty as of 2026-08-05. Before assuming prod has something local has (or vice versa),
+check both — don't assume they're in sync.
+
 ### Local database
 
-There is no Supabase project. Development runs against a throwaway container, and `.env` points
-at it:
+`.env` points the local database at a throwaway container:
 
 ```
 docker run --name budget-app-dev-db --detach --publish 127.0.0.1:5433:5432 \
