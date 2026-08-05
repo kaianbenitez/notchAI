@@ -39,17 +39,17 @@ stay with Claude Code. Mechanical implementation does not.
 ## State
 
 The app is called **Notch**. Built: the ledger core, the Next.js 16 shell, accounts/categories
-CRUD (`/accounts`, `/categories`), manual capture with an offline queue (`/log`), AI-assisted
-receipt-photo/text capture, a read-only month view with budget tracking (`/month`, `/budgets`),
-a password-protected statement PDF importer (`/import`), a changelog (`/changelog`), and a
-one-off script that imported the user's full transaction history from their old app's CSV export
-(`scripts/import-csv-history.ts`). Still unbuilt in M1: voice capture (`PLAN.md` §5 item 3, text
-only for now).
+CRUD (`/accounts`, `/categories`), manual capture with an offline queue and voice/photo/text
+AI-assisted prefill (`/log`), a read-only month view with budget tracking (`/month`, `/budgets`),
+a password-protected statement PDF importer (`/import`), a changelog (`/changelog`), split bills
+with friends (`/friends`, `/split`), and a one-off script that imported the user's full
+transaction history from their old app's CSV export (`scripts/import-csv-history.ts`).
 
-All four screens have been exercised against real Postgres and driven in a browser, not just
-covered by tests. Manual capture survives a dead connection: submissions queue in IndexedDB and
-flush on reconnect, made replay-safe by a client-minted id stored in `transactions.source_ref`
-under a partial unique index.
+All screens have been exercised against real Postgres and driven in a browser, not just covered
+by tests. Manual capture survives a dead connection: submissions queue in IndexedDB and flush on
+reconnect, made replay-safe by a client-minted id stored in `transactions.source_ref` under a
+partial unique index. A queued capture the server permanently rejects is removed from the queue
+and shown with its rejection reason, instead of silently blocking everything queued behind it.
 
 `/month` shows actuals only — income, expenses, net, a category breakdown, and the transaction
 list for one calendar month, with prev/next navigation. It also compares each budgeted category's
@@ -58,12 +58,26 @@ monthly budget, actual spend, and remaining amount.
 Budgets are flat monthly expense-category amounts, with optional rollover that carries both
 unspent funds and overspending into the next month. `/budgets` provides their CRUD UI.
 
-**Known gap:** a queued capture the server permanently rejects blocks everything queued behind
-it, silently. Nothing is lost, but nothing after it syncs either, and the user is not told.
+Split bills (`PLAN.md` §4.2–§4.3, M2): `/friends` adds a friend (each gets an auto-created
+receivable account), shows a running balance, and settles up. `/split` logs a shared expense
+either way — you paid and split it (evenly or by exact amounts) or someone else paid and you owe
+your share. Settling and splitting both refuse to let a friend's own receivable account be picked
+as the real cash/funding account, in either the UI or the underlying posting functions. Not yet
+built: group UI (the tables exist, nothing creates or picks a group from a screen), percentage/
+share-weighted splits (the module exists but its weighting semantics need a design decision before
+they're exposed in a form — see `src/transactions/split-capture.ts`), and a recent-splits history
+feed.
 
-`db/schema.sql` defines `accounts`, `people`, `transactions`, `entries` and two views. `PLAN.md`
-§3 describes eleven more tables that do not exist yet. Budgets and the importers are blocked on
-that DDL being written by hand, with the balance trigger preserved.
+`db/schema.sql` defines `accounts`, `people`, `groups`, `group_members`, `splits`, `ingest_events`,
+`transactions`, `entries`, `budgets`, and two views. `PLAN.md` §3 describes six more tables that
+do not exist yet: `recurring_rules`, `reminders`, `holdings`, `price_snapshots`, `net_worth_daily`,
+`attachments`.
+
+**Production database is behind local.** The `groups`/`group_members`/`splits` tables and the
+`transactions.group_id` column exist in `db/schema.sql` and in the local dev container, but have
+not been applied to the live Supabase database — `/friends` and `/split` will error on the
+deployed site until that DDL is run there by hand. This is a deliberate manual step, not
+automated by any agent, because it touches production data.
 
 ### Deployment and databases
 
@@ -124,7 +138,7 @@ A Codex run started from a Claude Code session **dies when that session exits.**
 ## Verify
 
 ```
-npm test     # 72 passing, PGlite, no database setup needed
+npm test     # 112 passing, PGlite, no database setup needed
 npm run build
 npm run lint
 ```
