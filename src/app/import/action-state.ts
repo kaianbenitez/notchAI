@@ -21,6 +21,7 @@ export interface ExtractChargeRow {
   score: number;
   candidate: ImportCandidate | null;
   suggestedCategoryId: string;
+  duplicateInStatement: boolean;
 }
 
 export interface ExtractImportState {

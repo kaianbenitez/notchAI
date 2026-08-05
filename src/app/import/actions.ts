@@ -7,7 +7,7 @@ import { currentUserId } from "../../auth";
 import { matchCategory } from "../../capture/ai-parse";
 import { withDb } from "../../db/client";
 import { commitMatchedStatement, commitNewStatement } from "../../import/commit";
-import { classifyMatch, dedupeHash, matchScore, type MatchableTransaction } from "../../import/match";
+import { assignMatches, classifyMatch, dedupeHash, type MatchableStatementRow, type MatchableTransaction } from "../../import/match";
 import { extractPdfText } from "../../import/pdf-extract";
 import { callGeminiForStatement, normalizeStatementRow, type StatementRow } from "../../import/statement-parse";
 import type { CommitImportState, ExtractChargeRow, ExtractImportState, ImportCandidate } from "./action-state";
@@ -121,27 +121,33 @@ export async function extractStatementAction(_previous: ExtractImportState, form
         statementCharges.reduce((latest, row) => row.occurredAt > latest ? row.occurredAt : latest, statementCharges[0].occurredAt),
       );
 
-    const candidateMatched = new Set<string>();
-    const charges: ExtractChargeRow[] = statementCharges.map((statementRow, index) => {
-      const matchable = {
+    const matchableRows: MatchableStatementRow[] = statementCharges.map((statementRow) => ({
         normalizedMerchant: statementRow.payee,
         amountMinor: statementRow.amountMinor,
         currency: "PHP",
         occurredAt: statementRow.occurredAt,
         accountId,
         dedupeHash: dedupeHash(statementRow.payee, statementRow.amountMinor, "PHP", statementRow.occurredAt),
-      };
-      const scored = candidates.map((candidate) => ({ candidate, score: matchScore(matchable, candidate) }));
-      const best = scored.reduce<(typeof scored)[number] | null>((current, item) => !current || item.score > current.score ? item : current, null);
-      if (best && best.score >= 0.5) candidateMatched.add(best.candidate.id);
+    }));
+    const assignments = assignMatches(matchableRows, candidates);
+    const candidateMatched = new Set(assignments
+      .filter((assignment) => assignment.candidate && assignment.score >= 0.5)
+      .map((assignment) => assignment.candidate!.id));
+    const duplicateKeys = new Map<string, number>();
+    for (const row of matchableRows) {
+      duplicateKeys.set(row.dedupeHash!, (duplicateKeys.get(row.dedupeHash!) ?? 0) + 1);
+    }
+    const charges: ExtractChargeRow[] = statementCharges.map((statementRow, index) => {
+      const best = assignments[index];
       const category = statementRow.confidence >= 0.7 ? matchCategory(statementRow.categoryGuess, categories) : null;
       return {
         id: `${index}-${statementRow.occurredAt}-${statementRow.amountMinor}`,
         statementRow,
-        classification: classifyMatch(best?.score ?? 0),
-        score: best?.score ?? 0,
-        candidate: best?.candidate ?? null,
+        classification: classifyMatch(best.score),
+        score: best.score,
+        candidate: best.candidate,
         suggestedCategoryId: category?.id ?? "",
+        duplicateInStatement: (duplicateKeys.get(matchableRows[index].dedupeHash!) ?? 0) > 1,
       };
     });
     return {

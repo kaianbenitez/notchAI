@@ -21,6 +21,22 @@ export interface StatementRow {
   confidence: number;
 }
 
+/** Coerce Gemini's parsed JSON into the permissive raw shape used for validation. */
+export function coerceStatementRows(parsed: unknown): RawStatementRow[] {
+  if (!Array.isArray(parsed)) throw new Error("not an array");
+  return parsed.map((item): RawStatementRow => {
+    const value = item && typeof item === "object" ? item as Partial<RawStatementRow> : {};
+    return {
+      occurredAt: typeof value.occurredAt === "string" ? value.occurredAt : null,
+      payee: typeof value.payee === "string" ? value.payee : null,
+      amountText: typeof value.amountText === "string" ? value.amountText : null,
+      kind: typeof value.kind === "string" ? value.kind : null,
+      categoryGuess: typeof value.categoryGuess === "string" ? value.categoryGuess : null,
+      confidence: typeof value.confidence === "number" ? value.confidence : 0,
+    };
+  });
+}
+
 function validDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [year, month, day] = value.split("-").map((part) => Number.parseInt(part, 10));
@@ -88,18 +104,7 @@ export async function callGeminiForStatement(text: string): Promise<RawStatement
   try {
     const response = await model.generateContent(prompt);
     const parsed: unknown = JSON.parse(response.response.text());
-    if (!Array.isArray(parsed)) throw new Error("not an array");
-    return parsed.map((item): RawStatementRow => {
-      const value = item && typeof item === "object" ? item as Partial<RawStatementRow> : {};
-      return {
-        occurredAt: typeof value.occurredAt === "string" ? value.occurredAt : null,
-        payee: typeof value.payee === "string" ? value.payee : null,
-        amountText: typeof value.amountText === "string" ? value.amountText : null,
-        kind: typeof value.kind === "string" ? value.kind : null,
-        categoryGuess: typeof value.categoryGuess === "string" ? value.categoryGuess : null,
-        confidence: typeof value.confidence === "number" ? value.confidence : 0,
-      };
-    });
+    return coerceStatementRows(parsed);
   } catch (error) {
     if (error instanceof Error && error.message === "not an array") {
       throw new Error("The AI did not return a statement row list. Try the statement again.");

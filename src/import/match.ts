@@ -11,6 +11,15 @@ export interface MatchableStatementRow {
 
 export interface MatchableTransaction extends MatchableStatementRow {}
 
+export interface IdentifiedMatchableTransaction extends MatchableTransaction {
+  id: string;
+}
+
+export interface MatchAssignment<C extends IdentifiedMatchableTransaction> {
+  candidate: C | null;
+  score: number;
+}
+
 /**
  * Normalizes merchant text exactly once for statement dedupe: trim the ends,
  * lowercase, and collapse every run of internal whitespace to one space.
@@ -84,4 +93,46 @@ export function classifyMatch(score: number): "auto" | "suggested" | "none" {
   if (score >= 0.8 - epsilon) return "auto";
   if (score >= 0.5 - epsilon) return "suggested";
   return "none";
+}
+
+/**
+ * Greedily assign each statement row its best distinct existing transaction.
+ * Only actionable matches (score >= 0.5) claim a candidate, preserving the
+ * existing suggested/auto thresholds while preventing duplicate replacements.
+ */
+export function assignMatches<C extends IdentifiedMatchableTransaction>(
+  statementRows: MatchableStatementRow[],
+  candidates: C[],
+): MatchAssignment<C>[] {
+  const remaining = [...candidates];
+  const assignments: MatchAssignment<C>[] = Array.from(
+    { length: statementRows.length },
+    () => ({ candidate: null, score: 0 }),
+  );
+  const bestScore = (row: MatchableStatementRow, pool: C[]) => pool.reduce(
+    (best, candidate) => Math.max(best, matchScore(row, candidate)),
+    0,
+  );
+
+  const orderedRows = statementRows
+    .map((row, index) => ({ row, index, initialScore: bestScore(row, candidates) }))
+    .sort((left, right) => right.initialScore - left.initialScore || left.index - right.index);
+
+  for (const { row, index } of orderedRows) {
+    const best = remaining.reduce<{ candidate: C; score: number } | null>(
+      (current, candidate) => {
+        const score = matchScore(row, candidate);
+        return !current || score > current.score ? { candidate, score } : current;
+      },
+      null,
+    );
+    if (!best) continue;
+
+    assignments[index] = best;
+    if (best.score >= 0.5) {
+      remaining.splice(remaining.indexOf(best.candidate), 1);
+    }
+  }
+
+  return assignments;
 }

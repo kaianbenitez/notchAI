@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCaptureDraft, matchCategory } from "../src/capture/ai-parse.js";
+import { buildCaptureDraft, coerceCaptureGuess, matchCategory } from "../src/capture/ai-parse";
 
 const categories = [
   { id: "dining", name: "Dining" },
@@ -44,5 +44,24 @@ describe("buildCaptureDraft", () => {
 
   it("keeps a matched category blank when the model is not confident enough", () => {
     expect(buildCaptureDraft({ payee: "Shop", amountText: "1", occurredAt: "2026-08-04", categoryGuess: "Dining", confidence: 0.69 }, categories, "2026-08-05")).toMatchObject({ categoryId: "" });
+  });
+});
+
+describe("coerceCaptureGuess", () => {
+  it("preserves a well-formed model response", () => {
+    const response = { payee: "Jollibee", amountText: "340.00", occurredAt: "2026-08-04", categoryGuess: "Dining", confidence: 0.8 };
+    expect(coerceCaptureGuess(response)).toEqual(response);
+  });
+
+  it("fills an empty object and ignores wrong field types without coercion", () => {
+    expect(coerceCaptureGuess({})).toEqual({ payee: null, amountText: null, occurredAt: null, categoryGuess: null, confidence: 0 });
+    expect(coerceCaptureGuess({ payee: 1, amountText: 340, occurredAt: false, categoryGuess: [], confidence: "0.8" })).toEqual({
+      payee: null, amountText: null, occurredAt: null, categoryGuess: null, confidence: 0,
+    });
+  });
+
+  it("rejects non-object model responses", () => {
+    expect(() => coerceCaptureGuess([])).toThrow("The AI response was not a capture draft.");
+    expect(() => coerceCaptureGuess(null)).toThrow("The AI response was not a capture draft.");
   });
 });

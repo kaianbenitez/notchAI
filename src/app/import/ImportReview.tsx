@@ -22,11 +22,12 @@ function initialChoices(state: ExtractImportState): Record<string, RowChoice> {
   }]));
 }
 
-function RowHeading({ date, payee, amount }: { date: string; payee: string; amount: number }) {
+function RowHeading({ date, payee, amount, duplicateInStatement = false }: { date: string; payee: string; amount: number; duplicateInStatement?: boolean }) {
   return <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
     <span className="font-medium text-slate-100">{payee}</span>
     <span className="tabular-nums text-slate-100">{formatPeso(amount)}</span>
     <time className="text-xs text-slate-500">{date}</time>
+    {duplicateInStatement && <span className="text-xs text-amber-300">Repeated in this statement</span>}
   </div>;
 }
 
@@ -113,7 +114,7 @@ export function ImportReview({ accounts, categories }: { accounts: { id: string;
         <p className="mt-1 text-sm text-slate-400">These are high-confidence replacements for transactions you already logged.</p>
         {extract.charges.filter((row) => row.classification === "auto").length === 0 ? <p className="mt-3 text-sm text-slate-500">None.</p> : <div className="mt-3 divide-y divide-slate-800 border-y border-slate-800">
           {extract.charges.filter((row) => row.classification === "auto").map((row) => <article key={row.id} className="py-4">
-            <RowHeading date={row.statementRow.occurredAt} payee={row.statementRow.payee} amount={row.statementRow.amountMinor} />
+            <RowHeading date={row.statementRow.occurredAt} payee={row.statementRow.payee} amount={row.statementRow.amountMinor} duplicateInStatement={row.duplicateInStatement} />
             <p className="mt-1 text-sm text-slate-400">Logged: {row.candidate?.payee || "—"} · {row.candidate ? formatPeso(row.candidate.amountMinor) : "—"} · {row.candidate?.occurredAt} · score {row.score.toFixed(1)}</p>
             <div className="mt-3 flex flex-wrap gap-4 text-sm text-slate-300">
               <label><input type="radio" checked={choices[row.id]?.choice === "matched"} onChange={() => update(row.id, { choice: "matched" })} /> <span className="ml-2">Accept match</span></label>
@@ -130,7 +131,7 @@ export function ImportReview({ accounts, categories }: { accounts: { id: string;
         <p className="mt-1 text-sm text-slate-400">Review these possible matches; none are applied until you choose.</p>
         {extract.charges.filter((row) => row.classification === "suggested").length === 0 ? <p className="mt-3 text-sm text-slate-500">None.</p> : <div className="mt-3 divide-y divide-slate-800 border-y border-slate-800">
           {extract.charges.filter((row) => row.classification === "suggested").map((row) => <article key={row.id} className="py-4">
-            <RowHeading date={row.statementRow.occurredAt} payee={row.statementRow.payee} amount={row.statementRow.amountMinor} />
+            <RowHeading date={row.statementRow.occurredAt} payee={row.statementRow.payee} amount={row.statementRow.amountMinor} duplicateInStatement={row.duplicateInStatement} />
             <p className="mt-1 text-sm text-slate-400">Possible logged row: {row.candidate?.payee || "—"} · {row.candidate ? formatPeso(row.candidate.amountMinor) : "—"} · {row.candidate?.occurredAt} · score {row.score.toFixed(1)}</p>
             <div className="mt-3 flex flex-wrap gap-4 text-sm text-slate-300">
               {(["matched", "new", "skip"] as const).map((choice) => <label key={choice}><input type="radio" name={`suggestion-${row.id}`} checked={choices[row.id]?.choice === choice} onChange={() => update(row.id, { choice })} /> <span className="ml-2">{choice === "matched" ? "Match logged row" : choice === "new" ? "Treat as new" : "Skip"}</span></label>)}
@@ -145,7 +146,7 @@ export function ImportReview({ accounts, categories }: { accounts: { id: string;
         <p className="mt-1 text-sm text-slate-400">Pick an expense category for every new charge before importing.</p>
         {extract.charges.filter((row) => row.classification === "none").length === 0 ? <p className="mt-3 text-sm text-slate-500">None.</p> : <div className="mt-3 divide-y divide-slate-800 border-y border-slate-800">
           {extract.charges.filter((row) => row.classification === "none").map((row) => <article key={row.id} className="py-4">
-            <RowHeading date={row.statementRow.occurredAt} payee={row.statementRow.payee} amount={row.statementRow.amountMinor} />
+            <RowHeading date={row.statementRow.occurredAt} payee={row.statementRow.payee} amount={row.statementRow.amountMinor} duplicateInStatement={row.duplicateInStatement} />
             <CategoryPicker value={choices[row.id]?.categoryId ?? ""} categories={categories} onChange={(categoryId) => update(row.id, { categoryId })} />
             <label className="mt-3 inline-flex text-sm text-slate-300"><input type="checkbox" checked={choices[row.id]?.choice === "skip"} onChange={(event) => update(row.id, { choice: event.target.checked ? "skip" : "new" })} /> <span className="ml-2">Skip this row</span></label>
           </article>)}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { classifyMatch, dedupeHash, matchScore, reducedKey } from "../src/import/match";
+import { assignMatches, classifyMatch, dedupeHash, matchScore, reducedKey } from "../src/import/match";
 
 const statement = {
   normalizedMerchant: "Coffee Bean",
@@ -51,5 +51,19 @@ describe("statement matching", () => {
   it("adds the same-account score and produces the merchantless reduced key", () => {
     expect(matchScore(statement, { ...statement, normalizedMerchant: "Other", occurredAt: "2026-07-01", amountMinor: 1 })).toBe(0.1);
     expect(reducedKey(10_500, "2026-08-10", "account-a")).toBe("10500|2026-08-10|account-a");
+  });
+
+  it("assigns identical statement rows to distinct identical logged transactions", () => {
+    const hash = dedupeHash("Coffee Bean", 10_500, "PHP", "2026-08-10");
+    const rows = [{ ...statement, dedupeHash: hash }, { ...statement, dedupeHash: hash }];
+    const candidates = [
+      { ...statement, id: "first", dedupeHash: hash },
+      { ...statement, id: "second", dedupeHash: hash },
+    ];
+
+    expect(assignMatches(rows, candidates)).toEqual([
+      { candidate: candidates[0], score: 1 },
+      { candidate: candidates[1], score: 1 },
+    ]);
   });
 });

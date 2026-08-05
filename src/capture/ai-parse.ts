@@ -16,6 +16,21 @@ export interface CaptureDraft {
   confidence: number;
 }
 
+/** Coerce Gemini's parsed JSON into the permissive raw shape used for validation. */
+export function coerceCaptureGuess(parsed: unknown): RawCaptureGuess {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("The AI response was not a capture draft.");
+  }
+  const value = parsed as Partial<RawCaptureGuess>;
+  return {
+    payee: typeof value.payee === "string" ? value.payee : null,
+    amountText: typeof value.amountText === "string" ? value.amountText : null,
+    occurredAt: typeof value.occurredAt === "string" ? value.occurredAt : null,
+    categoryGuess: typeof value.categoryGuess === "string" ? value.categoryGuess : null,
+    confidence: typeof value.confidence === "number" ? value.confidence : 0,
+  };
+}
+
 const CATEGORY_CONFIDENCE_THRESHOLD = 0.7;
 
 function normalise(value: string): string {
@@ -92,13 +107,5 @@ export async function callGeminiForCapture(input: {
 
   const response = await model.generateContent(parts);
   const parsed: unknown = JSON.parse(response.response.text());
-  if (!parsed || typeof parsed !== "object") throw new Error("The AI response was not a capture draft.");
-  const value = parsed as Partial<RawCaptureGuess>;
-  return {
-    payee: typeof value.payee === "string" ? value.payee : null,
-    amountText: typeof value.amountText === "string" ? value.amountText : null,
-    occurredAt: typeof value.occurredAt === "string" ? value.occurredAt : null,
-    categoryGuess: typeof value.categoryGuess === "string" ? value.categoryGuess : null,
-    confidence: typeof value.confidence === "number" ? value.confidence : 0,
-  };
+  return coerceCaptureGuess(parsed);
 }
