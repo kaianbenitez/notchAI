@@ -9,11 +9,11 @@ import { captureTransactionAction } from "../app/log/actions";
 import { formatPeso, parseAmountToMinor } from "../money";
 import type { RecentTransaction } from "../transactions/capture";
 import { IndexedDbCaptureStorage } from "../transactions/indexeddb-capture-storage";
-import { OfflineCaptureQueue, type QueuedCapture } from "../transactions/offline-queue";
+import { OfflineCaptureQueue, PermanentCaptureError, type QueuedCapture } from "../transactions/offline-queue";
 
 type Direction = "out" | "in";
 type FormValues = Omit<QueuedCapture, "id" | "queuedAt">;
-type DisplayTransaction = RecentTransaction & { pending?: boolean; clientId?: string; pendingAmount?: string };
+type DisplayTransaction = RecentTransaction & { pending?: boolean; clientId?: string; pendingAmount?: string; rejectionReason?: string };
 type SpeechRecognitionResult = { 0?: { transcript: string } };
 type SpeechRecognitionEvent = { results: { [index: number]: SpeechRecognitionResult }; resultIndex: number };
 type SpeechRecognitionInstance = {
@@ -140,7 +140,8 @@ export function CaptureForm({ accounts, today, initialDirection, recent: initial
     let active = true;
     const send = async (capture: QueuedCapture) => {
       const result = await captureTransactionAction({ error: null, transactionId: null }, formData(capture));
-      if (result.error || !result.transactionId) throw new Error(result.error ?? "capture did not return an id");
+      if (result.error) throw new PermanentCaptureError(result.error);
+      if (!result.transactionId) throw new Error("capture did not return an id");
       if (active) setRecent((current) => current.map((item) => item.clientId === capture.id ? { ...item, id: result.transactionId!, pending: false } : item));
     };
     const flush = async () => {
@@ -150,7 +151,14 @@ export function CaptureForm({ accounts, today, initialDirection, recent: initial
           const known = new Set(current.map((item) => item.clientId ?? item.id));
           return [...queued.filter((item) => !known.has(item.id)).map(toPendingRow), ...current];
         });
-        await queue.flush(send);
+        const result = await queue.flush(send);
+        if (active && result.rejected.length > 0) {
+          const rejected = new Map(result.rejected.map((item) => [item.id, item.reason]));
+          setRecent((current) => current.map((item) => {
+            const reason = rejected.get(item.clientId ?? item.id);
+            return reason ? { ...item, pending: false, rejectionReason: reason } : item;
+          }));
+        }
       } catch {
         // IndexedDB can be blocked in private browsing. Leave online capture usable.
       }
@@ -317,7 +325,7 @@ export function CaptureForm({ accounts, today, initialDirection, recent: initial
       {recent.length === 0 ? <p className="mt-3 text-sm text-slate-400">Nothing logged yet.</p> : <ul className="mt-3 divide-y divide-slate-800 border-y border-slate-800">
         {recent.map((transaction) => <li key={transaction.id} className="grid grid-cols-[auto_1fr_auto] gap-x-4 gap-y-1 py-3 text-sm">
           <time className="text-slate-500">{transaction.occurredAt}</time>
-          <span className="font-medium">{transaction.payee ?? "—"}{transaction.pending && <span className="ml-2 text-xs font-normal text-amber-300">Pending sync</span>}</span>
+          <span className="font-medium">{transaction.payee ?? "—"}{transaction.pending && <span className="ml-2 text-xs font-normal text-amber-300">Pending sync</span>}{transaction.rejectionReason && <span className="ml-2 text-xs font-normal text-red-400">Couldn&apos;t sync: {transaction.rejectionReason}</span>}</span>
           <span className="tabular-nums text-slate-100">{transaction.pendingAmount ?? formatPeso(transaction.amountMinor)}</span>
           <span className="col-start-2 text-slate-400">{transaction.category} · {transaction.account}</span>
         </li>)}
