@@ -12,6 +12,18 @@ export interface Person {
 export interface PersonWithBalance extends Person {
   balanceMinor: number;
 }
+export interface FriendActivity {
+  transactionId: string;
+  occurredAt: string;
+  payee: string | null;
+  memo: string | null;
+  personId: string;
+  personName: string;
+  groupId: string | null;
+  groupName: string | null;
+  amountMinor: number;
+  shareType: "equal" | "exact" | "pct" | "shares" | null;
+}
 export class PersonError extends Error {
   constructor(message: string) {
     super(message);
@@ -97,6 +109,65 @@ export async function listPeople(
     [userId, options.includeArchived ?? false],
   );
   return rows.map(withBalance);
+}
+
+type FriendActivityRow = {
+  transaction_id: string;
+  occurred_at: string;
+  payee: string | null;
+  memo: string | null;
+  person_id: string;
+  person_name: string;
+  group_id: string | null;
+  group_name: string | null;
+  amount_minor: string | number;
+  share_type: FriendActivity["shareType"];
+};
+
+/** Recent ledger entries against each friend's receivable account. */
+export async function listRecentFriendActivity(
+  sql: Sql,
+  userId: string,
+  options: { limit?: number; personId?: string } = {},
+): Promise<FriendActivity[]> {
+  const { rows } = await sql.query<FriendActivityRow>(
+    `select t.id as transaction_id,
+            t.occurred_at::text as occurred_at,
+            t.payee,
+            t.memo,
+            p.id as person_id,
+            p.name as person_name,
+            g.id as group_id,
+            g.name as group_name,
+            e.amount_minor,
+            s.share_type
+       from entries e
+       join accounts a on a.id = e.account_id
+       join people p on p.id = a.person_id
+       join transactions t on t.id = e.transaction_id
+       left join groups g on g.id = t.group_id
+       left join splits s on s.transaction_id = t.id and s.person_id = p.id
+      where a.kind = 'receivable'
+        and p.user_id = $1
+        and t.user_id = $1
+        and t.status <> 'duplicate_merged'
+        and ($2::uuid is null or p.id = $2)
+      order by t.occurred_at desc, t.created_at desc
+      limit $3`,
+    [userId, options.personId ?? null, options.limit ?? 20],
+  );
+  return rows.map((row) => ({
+    transactionId: row.transaction_id,
+    occurredAt: row.occurred_at,
+    payee: row.payee,
+    memo: row.memo,
+    personId: row.person_id,
+    personName: row.person_name,
+    groupId: row.group_id,
+    groupName: row.group_name,
+    amountMinor: Number(row.amount_minor),
+    shareType: row.share_type,
+  }));
 }
 export async function getPerson(
   sql: Sql,

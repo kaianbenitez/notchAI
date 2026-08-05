@@ -6,19 +6,31 @@ import type { AccountWithBalance } from "../accounts/repo";
 import { archivePersonAction, createPersonAction, settleUpAction } from "../app/friends/actions";
 import { NO_ERROR, type ActionState } from "../app/friends/action-state";
 import { formatPeso } from "../money";
-import type { PersonWithBalance } from "../people/repo";
+import type { FriendActivity, PersonWithBalance } from "../people/repo";
 
 const INPUT = "rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none";
 const BUTTON = "rounded-md px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50";
 
-export function FriendManager({ people, accounts, archivedFriendIds }: { people: PersonWithBalance[]; accounts: AccountWithBalance[]; archivedFriendIds: string[] }) {
+export function FriendManager({ people, accounts, archivedFriendIds, activity }: { people: PersonWithBalance[]; accounts: AccountWithBalance[]; archivedFriendIds: string[]; activity: FriendActivity[] }) {
   const archived = new Set(archivedFriendIds);
   const ordered = [...people].sort((a, b) => Number(archived.has(a.id)) - Number(archived.has(b.id)));
   return <main className="mx-auto w-full max-w-3xl px-6 py-12">
     <header className="mb-8"><h1 className="text-3xl font-semibold tracking-tight text-slate-100">Friends</h1><p className="mt-2 text-sm text-slate-400">Track what you owe each other when you share a bill.</p></header>
     <CreateForm />
     <div className="mt-10">{ordered.length === 0 ? <p className="rounded-lg border border-dashed border-slate-700 px-4 py-10 text-center text-sm text-slate-500">No friends yet. Add someone before logging a shared bill.</p> : <ul className="divide-y divide-slate-800 rounded-lg border border-slate-800">{ordered.map((person) => <FriendRow key={person.id} person={person} accounts={accounts} archived={archived.has(person.id)} />)}</ul>}</div>
+    <RecentActivity activity={activity} />
   </main>;
+}
+
+function RecentActivity({ activity }: { activity: FriendActivity[] }) {
+  return <section className="mt-10"><h2 className="text-lg font-semibold text-slate-100">Recent activity</h2>{activity.length === 0 ? <p className="mt-3 rounded-lg border border-dashed border-slate-700 px-4 py-8 text-center text-sm text-slate-500">No shared expenses yet.</p> : <ul className="mt-3 divide-y divide-slate-800 rounded-lg border border-slate-800">{activity.map((item) => <ActivityRow key={`${item.transactionId}-${item.personId}`} item={item} />)}</ul>}</section>;
+}
+
+function ActivityRow({ item }: { item: FriendActivity }) {
+  const positive = item.amountMinor > 0;
+  const amount = `${positive ? "+" : "−"}${formatPeso(Math.abs(item.amountMinor))}`;
+  const label = positive ? `Owes you ${formatPeso(item.amountMinor)}` : `You owe ${formatPeso(Math.abs(item.amountMinor))}`;
+  return <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm"><time dateTime={item.occurredAt} className="text-slate-500">{item.occurredAt}</time><span className="font-medium text-slate-100">{item.payee || item.memo || "Shared expense"}</span><span className="text-slate-400">{item.personName}</span>{item.groupId && <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-300">{item.groupName}</span>}<span className={`ml-auto tabular-nums ${positive ? "text-emerald-400" : "text-amber-300"}`}><span>{amount}</span><span className="ml-2 text-xs">{label}</span></span></li>;
 }
 
 function CreateForm() {
