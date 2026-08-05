@@ -6,6 +6,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAccount, createCategory } from "../src/accounts/repo";
 import { postTransaction } from "../src/ledger/post";
 import { reconcileDueRules, runDailyReminders } from "../src/reminders/cron";
+import { runDailyCaptureNudge } from "../src/capture/nudge";
+import { detectRecurringBillCandidates, dismissRecurringBillCandidate } from "../src/reminders/candidates";
+import { GET as captureNudgeCron } from "../src/app/api/cron/capture-nudge/route";
 import { rungForDate } from "../src/reminders/ladder";
 import { sendTelegramMessage } from "../src/notifications/telegram";
 import { nextOccurrence } from "../src/reminders/recurrence";
@@ -175,5 +178,64 @@ describe("Telegram delivery", () => {
     await sendTelegramMessage("Due today");
     expect(fetchMock).toHaveBeenCalledWith("https://api.telegram.org/bottest-token/sendMessage", expect.objectContaining({ method: "POST" }));
     vi.unstubAllGlobals(); vi.unstubAllEnvs();
+  });
+});
+
+describe("recurring bill suggestions", () => {
+  async function recurringExpense(date: string, amount = 120_000, payee = "StreamFlix") {
+    await postTransaction(db, { userId: USER, occurredAt: date, payee }, [
+      { accountId, amountMinor: -amount }, { accountId: categoryId, amountMinor: amount },
+    ]);
+  }
+
+  it("detects a consistent recurring expense and suggests its next cycle", async () => {
+    await recurringExpense("2026-01-10"); await recurringExpense("2026-02-10", 123_000); await recurringExpense("2026-03-10", 119_000);
+    const candidates = await detectRecurringBillCandidates(db, USER);
+    expect(candidates).toEqual([expect.objectContaining({ name: "StreamFlix", amountMinor: 120_000, accountId, categoryId, recurrencePreset: "monthly:10", nextDueOn: "2026-04-10" })]);
+  });
+
+  it("does not suggest irregular or materially variable spending", async () => {
+    await recurringExpense("2026-01-01", 100_000, "Corner shop"); await recurringExpense("2026-01-19", 160_000, "Corner shop"); await recurringExpense("2026-03-11", 90_000, "Corner shop");
+    expect(await detectRecurringBillCandidates(db, USER)).toEqual([]);
+  });
+
+  it("excludes a pattern that already has an active rule", async () => {
+    await recurringExpense("2026-01-10"); await recurringExpense("2026-02-10"); await recurringExpense("2026-03-10");
+    await createReminderRule(db, { userId: USER, name: "StreamFlix", amountMinor: 120_000, accountId, categoryId, recurrencePreset: "monthly:10", nextDueOn: "2026-04-10" });
+    expect(await detectRecurringBillCandidates(db, USER)).toEqual([]);
+  });
+
+  it("does not resurface a dismissed suggestion", async () => {
+    await recurringExpense("2026-01-10"); await recurringExpense("2026-02-10"); await recurringExpense("2026-03-10");
+    const [candidate] = await detectRecurringBillCandidates(db, USER);
+    await dismissRecurringBillCandidate(db, USER, candidate.fingerprint);
+    expect(await detectRecurringBillCandidates(db, USER)).toEqual([]);
+  });
+});
+
+describe("evening capture nudge", () => {
+  it("sends once when nothing has been logged today", async () => {
+    const send = vi.fn(async () => undefined);
+    expect(await runDailyCaptureNudge(db, "2026-08-05", send)).toBe(true);
+    expect(await runDailyCaptureNudge(db, "2026-08-05", send)).toBe(false);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not send when a transaction already exists today", async () => {
+    await postTransaction(db, { userId: USER, occurredAt: "2026-08-05" }, [
+      { accountId, amountMinor: -1_000 }, { accountId: categoryId, amountMinor: 1_000 },
+    ]);
+    const send = vi.fn(async () => undefined);
+    expect(await runDailyCaptureNudge(db, "2026-08-05", send)).toBe(false);
+    expect(send).not.toHaveBeenCalled();
+  });
+});
+
+describe("capture-nudge cron authentication", () => {
+  it("rejects a request without its bearer secret", async () => {
+    vi.stubEnv("CRON_SECRET", "cron-test-secret");
+    const response = await captureNudgeCron(new Request("https://notch.test/api/cron/capture-nudge"));
+    expect(response.status).toBe(401);
+    vi.unstubAllEnvs();
   });
 });

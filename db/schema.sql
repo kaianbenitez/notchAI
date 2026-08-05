@@ -293,3 +293,19 @@ create table reminders (
   constraint reminders_rung_check check (rung in ('t_minus_5','t_minus_1','due','overdue')),
   unique (rule_id, fire_at)
 );
+
+-- A dismissal is separate from a rule: declining a suggestion must never make
+-- it look like a real bill in the user-facing bill list.
+create table dismissed_bill_suggestions (
+  user_id    uuid not null,
+  fingerprint text not null,
+  dismissed_at timestamptz not null default now(),
+  primary key (user_id, fingerprint)
+);
+
+-- One capture nudge per Philippine calendar date, even if the cron retries.
+create table capture_nudges (
+  nudge_date date primary key,
+  sent_at timestamptz,
+  created_at timestamptz not null default now()
+);

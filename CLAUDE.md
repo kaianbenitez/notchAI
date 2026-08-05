@@ -89,6 +89,10 @@ tables and the `transactions.group_id` column have been applied to the live Supa
 hand (run manually in the Supabase SQL editor, not by any agent — that stays a deliberate manual
 step whenever schema changes touch production). `/friends` and `/split` work on the deployed site.
 
+The later `dismissed_bill_suggestions` and `capture_nudges` tables are present in local
+`db/schema.sql` only and still need to be applied by hand to Supabase before deploying the bill
+suggestions and capture-nudge crons.
+
 ### Deployment and databases
 
 The app is live on Vercel at https://notch-ai.vercel.app, auto-deploying from `origin/main` with

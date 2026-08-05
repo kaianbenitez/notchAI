@@ -248,3 +248,15 @@ export const reminders = pgTable("reminders", {
   check("reminders_rung_check", sql`${table.rung} in ('t_minus_5', 't_minus_1', 'due', 'overdue')`),
   uniqueIndex("reminders_rule_fire_at_unique_idx").on(table.ruleId, table.fireAt),
 ]);
+
+export const dismissedBillSuggestions = pgTable("dismissed_bill_suggestions", {
+  userId: uuid("user_id").notNull(),
+  fingerprint: text("fingerprint").notNull(),
+  dismissedAt: timestamp("dismissed_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [uniqueIndex("dismissed_bill_suggestions_pkey").on(table.userId, table.fingerprint)]);
+
+export const captureNudges = pgTable("capture_nudges", {
+  nudgeDate: date("nudge_date").primaryKey(),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

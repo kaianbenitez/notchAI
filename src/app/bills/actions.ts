@@ -7,6 +7,7 @@ import { currentUserId } from "../../auth";
 import { withDb } from "../../db/client";
 import { AmountParseError, parseAmountToMinor } from "../../money";
 import { ReminderRuleError, archiveReminderRule, createReminderRule, markReminderRulePaid, updateReminderRule } from "../../reminders/repo";
+import { dismissRecurringBillCandidate } from "../../reminders/candidates";
 
 function field(form: FormData, name: string): string { const value = form.get(name); return typeof value === "string" ? value : ""; }
 async function run(action: () => Promise<void>): Promise<ActionState> {
@@ -25,3 +26,4 @@ export async function updateBillAction(_previous: ActionState, form: FormData): 
 }
 export async function archiveBillAction(_previous: ActionState, form: FormData): Promise<ActionState> { return run(() => withDb((sql) => archiveReminderRule(sql, currentUserId(), field(form, "id")))); }
 export async function markBillPaidAction(_previous: ActionState, form: FormData): Promise<ActionState> { return run(() => withDb((sql) => markReminderRulePaid(sql, currentUserId(), field(form, "id")))); }
+export async function dismissBillSuggestionAction(_previous: ActionState, form: FormData): Promise<ActionState> { return run(() => withDb((sql) => dismissRecurringBillCandidate(sql, currentUserId(), field(form, "fingerprint")))); }
