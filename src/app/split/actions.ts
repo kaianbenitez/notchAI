@@ -37,10 +37,10 @@ export async function captureSplitExpenseAction(_previous: ActionState, form: Fo
     if (shareType !== "equal" && shareType !== "exact") throw new SplitCaptureError("pick a valid share type");
     parseAmountToMinor(field(form, "amount"));
     const selected = participants(form);
-    await captureSplitExpense(sql, { userId: currentUserId(), occurredAt: field(form, "occurredAt"), payee: field(form, "payee"), amount: field(form, "amount"), categoryId: field(form, "categoryId"), accountId: field(form, "accountId"), shareType, participants: selected.map((participant) => ({ personId: participant.personId, ...(shareType === "exact" ? { weight: parseAmountToMinor(participant.amount ?? "") } : {}) })) });
+    await captureSplitExpense(sql, { userId: currentUserId(), occurredAt: field(form, "occurredAt"), payee: field(form, "payee"), amount: field(form, "amount"), categoryId: field(form, "categoryId"), accountId: field(form, "accountId"), groupId: field(form, "groupId") || undefined, shareType, participants: selected.map((participant) => ({ personId: participant.personId, ...(shareType === "exact" ? { weight: parseAmountToMinor(participant.amount ?? "") } : {}) })) });
   }));
 }
 
 export async function captureOwedExpenseAction(_previous: ActionState, form: FormData): Promise<ActionState> {
-  return run(() => withDb((sql) => captureOwedExpense(sql, { userId: currentUserId(), occurredAt: field(form, "occurredAt"), payee: field(form, "payee"), categoryId: field(form, "categoryId"), personId: field(form, "personId"), yourShareMinor: parseAmountToMinor(field(form, "amount")) }).then(() => undefined)));
+  return run(() => withDb((sql) => captureOwedExpense(sql, { userId: currentUserId(), occurredAt: field(form, "occurredAt"), payee: field(form, "payee"), categoryId: field(form, "categoryId"), personId: field(form, "personId"), yourShareMinor: parseAmountToMinor(field(form, "amount")), groupId: field(form, "groupId") || undefined }).then(() => undefined)));
 }

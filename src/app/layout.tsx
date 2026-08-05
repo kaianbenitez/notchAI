@@ -13,6 +13,7 @@ const NAV = [
   { href: "/categories", label: "Categories" },
   { href: "/log", label: "Log" },
   { href: "/friends", label: "Friends" },
+  { href: "/groups", label: "Groups" },
   { href: "/split", label: "Split" },
   { href: "/month", label: "Month" },
   { href: "/budgets", label: "Budgets" },
