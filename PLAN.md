@@ -149,15 +149,28 @@ read-only group ledger page. If a friend wants in properly, they sign up and `pe
 connects them. Keeps you on free tier while the group is 1 real user + N names.
 
 ### 4.5 Bill reminders
-`recurring_rules` with an RRULE. A scheduler (pg_cron, hourly) materializes `reminders` and pushes
-via VAPID web push on a ladder: **T−5d → T−1d → due date 9am → overdue daily**.
 
-The part most apps miss and you should build: **auto-reconciliation.** When a transaction lands
-matching a rule's account + amount within `tolerance_pct` + date window, mark the bill paid and
-cancel remaining reminders. If nothing matches by T+2, escalate to a "possibly missed" alert.
+**Revised 2026-08-05: Telegram replaces web push as the delivery channel**, and M3 is split into
+two phases instead of one. Reasoning: web push on iOS PWAs is fragile (§9 risk 3) and the user
+named Telegram directly as where reminders should land. All four ladder rungs below are once-a-day
+granularity, so delivery can run off a single daily scheduled job — no `pg_cron`/hourly job needed.
 
-Also detect **new** recurring bills automatically from history (§4.6) and offer to promote them to
-rules — you shouldn't have to enter 20 bills by hand.
+**Phase 1 (building now):** `recurring_rules` (manually entered: name, amount, account, category,
+recurrence, autopay) with an RRULE, and `reminders` materialized by one daily job on the ladder
+**T−5d → T−1d → due date 9am → overdue daily**, delivered via a single-user Telegram bot (bot
+token + the user's own chat ID, both in `.env`/Vercel env — no account-linking flow needed for a
+single user). "Mark as paid" is a manual button in the UI for this phase: it acknowledges the
+current cycle's reminders and advances `next_due_on` to the rule's next occurrence.
+
+**Phase 2 (later, not in current scope):** the two things most apps miss —
+- **Auto-reconciliation.** When a transaction lands matching a rule's account + amount within
+  `tolerance_pct` + date window, mark the bill paid and cancel remaining reminders automatically
+  (replacing Phase 1's manual button). If nothing matches by T+2, escalate to a "possibly missed"
+  alert.
+- **Auto-detection.** Detect new recurring bills automatically from history (§4.6) and offer to
+  promote them to rules — you shouldn't have to enter 20 bills by hand.
+
+Also deferred to Phase 2 or later: the daily 9pm capture nudge (§7 M3 originally bundled it here).
 
 ### 4.6 Insights
 Concrete, computed on a nightly job, surfaced as a card feed. Not a vague "AI insights" button.
