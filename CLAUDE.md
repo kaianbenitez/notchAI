@@ -59,14 +59,25 @@ Budgets are flat monthly expense-category amounts, with optional rollover that c
 unspent funds and overspending into the next month. `/budgets` provides their CRUD UI.
 
 Split bills (`PLAN.md` §4.2–§4.3, M2): `/friends` adds a friend (each gets an auto-created
-receivable account), shows a running balance, and settles up. `/split` logs a shared expense
-either way — you paid and split it (evenly or by exact amounts) or someone else paid and you owe
-your share. Settling and splitting both refuse to let a friend's own receivable account be picked
-as the real cash/funding account, in either the UI or the underlying posting functions. Not yet
-built: group UI (the tables exist, nothing creates or picks a group from a screen), percentage/
-share-weighted splits (the module exists but its weighting semantics need a design decision before
-they're exposed in a form — see `src/transactions/split-capture.ts`), and a recent-splits history
-feed.
+receivable account), shows a running balance, settles up, and lists a "Recent activity" feed of
+every split/owed/settlement transaction touching any friend (`listRecentFriendActivity` in
+`src/people/repo.ts`, one row per person per transaction, signed to match balance direction).
+`/split` logs a shared expense either way — you paid and split it (evenly, by exact amounts, by
+percentage, or by shares/ratio) or someone else paid and you owe your share. `/groups` creates and
+manages named groups (e.g. a trip or household) with members; picking a group on `/split` prefills
+participants from that group's membership, still editable afterward. Settling and splitting both
+refuse to let a friend's own receivable account be picked as the real cash/funding account, in
+either the UI or the underlying posting functions. Not yet built: percentage/share-weighted splits
+have no in-UI hint that percentages should sum to ~100 (not required — `splitByWeights` normalizes
+by the weights' own sum regardless).
+
+The statement importer (`/import`) assigns each statement row its own distinct already-logged
+transaction when matching — two identical same-day charges no longer fight over the same candidate
+(`assignMatches` in `src/import/match.ts`), and rows that repeat within one statement are flagged
+in the review UI so the user notices before importing both. Still out of scope, not addressed by
+this hardening pass: statement formats other than BPI, and importing payments/credits (the parser
+already separates `payment_or_credit` rows from `charge` rows, but only charges are ever committed
+to the ledger — payments/credits are shown read-only and never posted).
 
 `db/schema.sql` defines `accounts`, `people`, `groups`, `group_members`, `splits`, `ingest_events`,
 `transactions`, `entries`, `budgets`, and two views. `PLAN.md` §3 describes six more tables that
@@ -163,7 +174,7 @@ A Codex run started from a Claude Code session **dies when that session exits.**
 ## Verify
 
 ```
-npm test     # 112 passing, PGlite, no database setup needed
+npm test     # 132 passing, PGlite, no database setup needed
 npm run build
 npm run lint
 ```
