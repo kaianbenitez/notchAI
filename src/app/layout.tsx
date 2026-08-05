@@ -12,6 +12,8 @@ const NAV = [
   { href: "/accounts", label: "Accounts" },
   { href: "/categories", label: "Categories" },
   { href: "/log", label: "Log" },
+  { href: "/friends", label: "Friends" },
+  { href: "/split", label: "Split" },
   { href: "/month", label: "Month" },
   { href: "/budgets", label: "Budgets" },
   { href: "/import", label: "Import" },
