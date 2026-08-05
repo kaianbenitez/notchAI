@@ -109,6 +109,32 @@ verification runs — no real financial data, and none should ever be put there.
 **Check `git log --oneline` for anything newer than this file.** The commit history is the
 current state; this section is a starting orientation and will go stale.
 
+## What the user cares about most
+
+Stated directly on 2026-08-05, after M1 close-out and split bills shipped — weigh these when
+picking what to build next or how to build it, even where they push against what `PLAN.md`
+currently says:
+
+- **The app should feel good to use, not just work.** Nice-looking, "addictive" in the good sense,
+  easy to navigate, and above all frictionless to log into from a phone away from home, not just
+  from a desk. Visual/UX polish is a real priority here, not a nice-to-have deferred past
+  functional completeness — factor it into planning, don't treat it as separate cleanup work.
+- **Bill reminders should reach them somewhere they'll actually see them** — Telegram was named
+  specifically, alongside other options. `PLAN.md` §4.5 currently specs VAPID web push only; when
+  M3 (bill reminders) is actually planned, raise this rather than silently building push-only.
+- **AI insights should feel like a financial advisor, not a dashboard widget.** The user has
+  already informally prototyped this: a separate chat session, told about their full financial
+  picture (assets, savings, investments), fed their transaction CSV, and asked for advice — that
+  conversational, full-context experience is the bar. This does not relax the non-negotiable in
+  `AGENTS.md` ("the model writes prose around figures it is given," never computes them) — the
+  precomputed-aggregates constraint stays. What it does mean: when insights (M5, `PLAN.md` §4.6)
+  get built, favor a conversational surface with real context about the user's full position over
+  static insight cards, while keeping every number the model states sourced from a precomputed
+  query underneath.
+- **Splitting credit-card spend with a girlfriend and friends is a real, recurring need**, not a
+  hypothetical — this is what the split-bills feature (`/friends`, `/split`) exists to solve,
+  particularly for the BPI credit card (`PLAN.md` §6.1's dominant-spend account).
+
 ## Conventions that bite
 
 **Relative imports carry no `.js` extension.** Turbopack does not rewrite `.js` to `.ts`, so
