@@ -17,6 +17,7 @@ const NAV = [
   { href: "/split", label: "Split" },
   { href: "/month", label: "Month" },
   { href: "/budgets", label: "Budgets" },
+  { href: "/bills", label: "Bills" },
   { href: "/import", label: "Import" },
   { href: "/changelog", label: "Changelog" },
 ];

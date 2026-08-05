@@ -217,3 +217,34 @@ export const budgets = pgTable(
     uniqueIndex("budgets_user_account_active_idx").on(table.userId, table.accountId).where(sql`${table.archivedAt} is null`),
   ],
 );
+
+export const recurringRules = pgTable("recurring_rules", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull(),
+  name: text("name").notNull(),
+  rrule: text("rrule").notNull(),
+  expectedAmountMinor: bigint("expected_amount_minor", { mode: "bigint" }).notNull(),
+  tolerancePct: numeric("tolerance_pct").notNull().default("0"),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "restrict" }),
+  categoryId: uuid("category_id").notNull().references(() => accounts.id, { onDelete: "restrict" }),
+  nextDueOn: date("next_due_on").notNull(),
+  autopay: boolean("autopay").notNull().default(false),
+  lastMatchedTxnId: uuid("last_matched_txn_id").references(() => transactions.id, { onDelete: "set null" }),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [check("recurring_rule_amount_positive", sql`${table.expectedAmountMinor} > 0`)]);
+
+export const reminders = pgTable("reminders", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  ruleId: uuid("rule_id").notNull().references(() => recurringRules.id, { onDelete: "cascade" }),
+  cycleDueOn: date("cycle_due_on").notNull(),
+  rung: text("rung").notNull(),
+  fireAt: date("fire_at").notNull(),
+  channel: text("channel").notNull().default("telegram"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  check("reminders_rung_check", sql`${table.rung} in ('t_minus_5', 't_minus_1', 'due', 'overdue')`),
+  uniqueIndex("reminders_rule_fire_at_unique_idx").on(table.ruleId, table.fireAt),
+]);

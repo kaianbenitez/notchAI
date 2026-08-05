@@ -260,3 +260,36 @@ create table budgets (
 -- Only one live budget per category at a time. Archive and create a new one to change history.
 create unique index budgets_user_account_active_idx on budgets (user_id, account_id)
   where archived_at is null;
+
+create table recurring_rules (
+  id                    uuid primary key default gen_random_uuid(),
+  user_id               uuid not null,
+  name                  text not null,
+  rrule                 text not null,
+  expected_amount_minor bigint not null,
+  tolerance_pct         numeric not null default 0,
+  account_id            uuid not null references accounts (id) on delete restrict,
+  category_id           uuid not null references accounts (id) on delete restrict,
+  next_due_on           date not null,
+  autopay               boolean not null default false,
+  last_matched_txn_id   uuid references transactions (id) on delete set null,
+  archived_at           timestamptz,
+  created_at            timestamptz not null default now(),
+
+  constraint recurring_rule_amount_positive check (expected_amount_minor > 0)
+);
+
+create table reminders (
+  id              uuid primary key default gen_random_uuid(),
+  rule_id         uuid not null references recurring_rules (id) on delete cascade,
+  cycle_due_on    date not null,
+  rung            text not null,
+  fire_at         date not null,
+  channel         text not null default 'telegram',
+  sent_at         timestamptz,
+  acknowledged_at timestamptz,
+  created_at      timestamptz not null default now(),
+
+  constraint reminders_rung_check check (rung in ('t_minus_5','t_minus_1','due','overdue')),
+  unique (rule_id, fire_at)
+);
