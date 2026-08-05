@@ -35,7 +35,7 @@ function CreateForm({ accounts, categories, today }: Pick<Props, "accounts" | "c
 function BillRow({ rule, accounts, categories }: { rule: ReminderRule; accounts: AccountWithBalance[]; categories: AccountWithBalance[] }) {
   const [editing, setEditing] = useState(false); const archived = rule.archivedAt !== null;
   return <li className={archived ? "opacity-50" : undefined}><div className="flex flex-wrap items-center gap-3 px-4 py-3">{editing ? <EditForm rule={rule} accounts={accounts} categories={categories} onDone={() => setEditing(false)} /> : <>
-    <span className="flex-1 text-sm text-slate-100">{rule.name}{archived && <span className="ml-2 text-xs uppercase tracking-wide text-slate-500">archived</span>}</span>
+    <span className="flex-1 text-sm text-slate-100">{rule.name}{archived && <span className="ml-2 text-xs uppercase tracking-wide text-slate-500">archived</span>}{rule.lastMatchedTxnId && <span className="ml-2 text-xs text-slate-500">Auto-matched</span>}</span>
     <span className="text-xs text-slate-500">Due {rule.nextDueOn}</span><span className="tabular-nums text-sm text-slate-300">{formatPeso(rule.expectedAmountMinor)}</span>
     <span className="text-xs text-slate-400">{rule.currentReminderAcknowledgedAt ? "Paid" : rule.currentReminderRung ? rule.currentReminderRung.replaceAll("_", " ") : rule.autopay ? "Autopay" : ""}</span>
     {!archived && <><MarkPaidButton rule={rule} /><button type="button" onClick={() => setEditing(true)} className={`${BUTTON} text-slate-400 hover:text-slate-100`}>Edit</button><ArchiveButton rule={rule} /></>}

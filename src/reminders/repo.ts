@@ -14,6 +14,7 @@ export interface ReminderRule {
   categoryName: string;
   nextDueOn: string;
   autopay: boolean;
+  lastMatchedTxnId: string | null;
   archivedAt: Date | null;
   currentReminderRung: string | null;
   currentReminderAcknowledgedAt: Date | null;
@@ -27,6 +28,7 @@ interface RuleRow {
   id: string; user_id: string; name: string; rrule: string; expected_amount_minor: number | string;
   account_id: string; account_name: string; category_id: string; category_name: string;
   next_due_on: string | Date; autopay: boolean; archived_at: string | Date | null;
+  last_matched_txn_id: string | null;
   current_reminder_rung: string | null; current_reminder_acknowledged_at: string | Date | null;
 }
 
@@ -38,6 +40,7 @@ function toRule(row: RuleRow): ReminderRule {
     recurrencePreset: rruleToRecurrencePreset(row.rrule), expectedAmountMinor: Number(row.expected_amount_minor),
     accountId: row.account_id, accountName: row.account_name, categoryId: row.category_id, categoryName: row.category_name,
     nextDueOn: isoDate(row.next_due_on), autopay: row.autopay,
+    lastMatchedTxnId: row.last_matched_txn_id,
     archivedAt: row.archived_at === null ? null : new Date(row.archived_at), currentReminderRung: row.current_reminder_rung,
     currentReminderAcknowledgedAt: row.current_reminder_acknowledged_at === null ? null : new Date(row.current_reminder_acknowledged_at),
   };
@@ -90,7 +93,7 @@ async function assertAccounts(sql: Sql, userId: string, accountId: string, categ
 
 const SELECT_RULE = `
   r.id, r.user_id, r.name, r.rrule, r.expected_amount_minor, r.account_id, funding.name as account_name,
-  r.category_id, category.name as category_name, r.next_due_on, r.autopay, r.archived_at,
+  r.category_id, category.name as category_name, r.next_due_on, r.autopay, r.last_matched_txn_id, r.archived_at,
   reminder.rung as current_reminder_rung, reminder.acknowledged_at as current_reminder_acknowledged_at`;
 
 export async function createReminderRule(sql: Sql, input: {
@@ -105,7 +108,7 @@ export async function createReminderRule(sql: Sql, input: {
   const { rows } = await sql.query<RuleRow>(
     `insert into recurring_rules (user_id, name, rrule, expected_amount_minor, account_id, category_id, next_due_on, autopay)
      values ($1, $2, $3, $4, $5, $6, $7, $8)
-     returning id, user_id, name, rrule, expected_amount_minor, account_id, $9::text as account_name, category_id, $10::text as category_name, next_due_on, autopay, archived_at, null::text as current_reminder_rung, null::timestamptz as current_reminder_acknowledged_at`,
+     returning id, user_id, name, rrule, expected_amount_minor, account_id, $9::text as account_name, category_id, $10::text as category_name, next_due_on, autopay, last_matched_txn_id, archived_at, null::text as current_reminder_rung, null::timestamptz as current_reminder_acknowledged_at`,
     [input.userId, name, rrule, input.amountMinor, input.accountId, input.categoryId, input.nextDueOn, input.autopay ?? false, "", ""],
   );
   const row = rows[0];
@@ -142,7 +145,7 @@ export async function updateReminderRule(sql: Sql, userId: string, id: string, c
   const { rows } = await sql.query<RuleRow>(
     `update recurring_rules set name = $3, rrule = $4, expected_amount_minor = $5, account_id = $6, category_id = $7, next_due_on = $8, autopay = $9
       where id = $1 and user_id = $2
-      returning id, user_id, name, rrule, expected_amount_minor, account_id, $10::text as account_name, category_id, $11::text as category_name, next_due_on, autopay, archived_at, null::text as current_reminder_rung, null::timestamptz as current_reminder_acknowledged_at`,
+      returning id, user_id, name, rrule, expected_amount_minor, account_id, $10::text as account_name, category_id, $11::text as category_name, next_due_on, autopay, last_matched_txn_id, archived_at, null::text as current_reminder_rung, null::timestamptz as current_reminder_acknowledged_at`,
     [id, userId, name, rrule, changes.amountMinor, changes.accountId, changes.categoryId, changes.nextDueOn, changes.autopay, "", ""],
   );
   const row = rows[0];
@@ -158,6 +161,16 @@ export async function archiveReminderRule(sql: Sql, userId: string, id: string):
   if (!existing.rows[0]) throw new ReminderRuleError("that bill does not exist");
 }
 
+export async function closeReminderRuleCycle(sql: Sql, input: {
+  id: string; userId: string; rrule: string; dueOn: string; lastMatchedTxnId: string | null;
+}): Promise<void> {
+  await sql.query("update reminders set acknowledged_at = now() where rule_id = $1 and cycle_due_on = $2 and acknowledged_at is null", [input.id, input.dueOn]);
+  await sql.query(
+    "update recurring_rules set next_due_on = $3, last_matched_txn_id = $4 where id = $1 and user_id = $2",
+    [input.id, input.userId, nextOccurrence(input.rrule, input.dueOn), input.lastMatchedTxnId],
+  );
+}
+
 export async function markReminderRulePaid(sql: Sql, userId: string, id: string): Promise<void> {
   await sql.query("begin");
   try {
@@ -166,8 +179,7 @@ export async function markReminderRulePaid(sql: Sql, userId: string, id: string)
     );
     if (!rows[0]) throw new ReminderRuleError("that active bill does not exist");
     const dueOn = isoDate(rows[0].next_due_on);
-    await sql.query("update reminders set acknowledged_at = now() where rule_id = $1 and cycle_due_on = $2 and acknowledged_at is null", [id, dueOn]);
-    await sql.query("update recurring_rules set next_due_on = $3 where id = $1 and user_id = $2", [id, userId, nextOccurrence(rows[0].rrule, dueOn)]);
+    await closeReminderRuleCycle(sql, { id, userId, rrule: rows[0].rrule, dueOn, lastMatchedTxnId: null });
     await sql.query("commit");
   } catch (error) { await sql.query("rollback"); throw error; }
 }
