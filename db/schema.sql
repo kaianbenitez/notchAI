@@ -16,6 +16,7 @@ create type txn_source as enum (
 );
 
 create type txn_status as enum ('confirmed', 'pending_review', 'stub', 'duplicate_merged');
+create type split_share_type as enum ('equal', 'exact', 'pct', 'shares');
 
 -- Categories are accounts with role expense/income and kind 'category'.
 -- Friend receivables/payables are accounts too. One table, so splits, debts,
@@ -49,6 +50,25 @@ create table people (
   created_at            timestamptz not null default now()
 );
 
+create table groups (
+  id                      uuid primary key default gen_random_uuid(),
+  user_id                 uuid not null,
+  name                    text not null,
+  currency                char(3) not null default 'PHP',
+  simplify_debts_enabled  boolean not null default false,
+  archived_at             timestamptz,
+  created_at              timestamptz not null default now()
+);
+
+create table group_members (
+  group_id              uuid not null references groups (id) on delete cascade,
+  person_id             uuid not null references people (id) on delete restrict,
+  default_share_weight  numeric(10, 4) not null default 1,
+  created_at            timestamptz not null default now(),
+  primary key (group_id, person_id)
+);
+create index group_members_person_idx on group_members (person_id);
+
 -- Immutable source material for imports. Raw payloads are retained so parser
 -- changes can be replayed against history without losing the original input.
 create table ingest_events (
@@ -69,6 +89,7 @@ create table transactions (
   source      txn_source not null default 'manual',
   status      txn_status not null default 'confirmed',
   confidence  real,
+  group_id    uuid references groups (id) on delete set null,
 
   -- Dedupe. dedupe_hash = sha256(merchant|amount|currency|date) when a merchant
   -- is known. reduced_key = amount|date|account, for sources with no merchant
@@ -87,6 +108,20 @@ create table transactions (
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
+
+create table splits (
+  id             uuid primary key default gen_random_uuid(),
+  transaction_id uuid not null references transactions (id) on delete cascade,
+  person_id      uuid not null references people (id) on delete restrict,
+  share_minor    bigint not null,
+  share_type     split_share_type not null,
+  created_at     timestamptz not null default now(),
+
+  constraint splits_share_nonzero check (share_minor <> 0),
+  unique (transaction_id, person_id)
+);
+create index splits_transaction_idx on splits (transaction_id);
+create index splits_person_idx on splits (person_id);
 
 create table entries (
   id             uuid primary key default gen_random_uuid(),
@@ -118,6 +153,7 @@ create index txn_dedupe_idx          on transactions (user_id, dedupe_hash)
 create index txn_reduced_idx         on transactions (user_id, reduced_key)
   where reduced_key is not null;
 create index txn_ingest_event_idx    on transactions (ingest_event_id);
+create index txn_group_idx           on transactions (group_id) where group_id is not null;
 -- Client-minted capture ids make offline queue replays idempotent.
 create unique index txn_user_source_ref_unique_idx on transactions (user_id, source_ref)
   where source_ref is not null;

@@ -59,6 +59,8 @@ export const txnStatus = pgEnum("txn_status", [
   "duplicate_merged",
 ]);
 
+export const splitShareType = pgEnum("split_share_type", ["equal", "exact", "pct", "shares"]);
+
 export const accounts = pgTable(
   "accounts",
   {
@@ -91,6 +93,19 @@ export const people = pgTable("people", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const groups = pgTable("groups", {
+  id: uuid("id").defaultRandom().primaryKey(), userId: uuid("user_id").notNull(), name: text("name").notNull(),
+  currency: char("currency", { length: 3 }).notNull().default("PHP"), simplifyDebtsEnabled: boolean("simplify_debts_enabled").notNull().default(false),
+  archivedAt: timestamp("archived_at", { withTimezone: true }), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const groupMembers = pgTable("group_members", {
+  groupId: uuid("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
+  personId: uuid("person_id").notNull().references(() => people.id, { onDelete: "restrict" }),
+  defaultShareWeight: numeric("default_share_weight", { precision: 10, scale: 4 }).notNull().default("1"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [index("group_members_person_idx").on(table.personId)]);
+
 export const ingestEvents = pgTable("ingest_events", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull(),
@@ -111,6 +126,7 @@ export const transactions = pgTable(
     source: txnSource("source").notNull().default("manual"),
     status: txnStatus("status").notNull().default("confirmed"),
     confidence: real("confidence"),
+    groupId: uuid("group_id").references(() => groups.id, { onDelete: "set null" }),
     sourceRef: text("source_ref"),
     dedupeHash: text("dedupe_hash"),
     reducedKey: text("reduced_key"),
@@ -125,9 +141,18 @@ export const transactions = pgTable(
     index("txn_dedupe_idx").on(table.userId, table.dedupeHash).where(sql`${table.dedupeHash} is not null`),
     index("txn_reduced_idx").on(table.userId, table.reducedKey).where(sql`${table.reducedKey} is not null`),
     index("txn_ingest_event_idx").on(table.ingestEventId),
+    index("txn_group_idx").on(table.groupId).where(sql`${table.groupId} is not null`),
     uniqueIndex("txn_user_source_ref_unique_idx").on(table.userId, table.sourceRef).where(sql`${table.sourceRef} is not null`),
   ],
 );
+
+export const splits = pgTable("splits", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  transactionId: uuid("transaction_id").notNull().references(() => transactions.id, { onDelete: "cascade" }),
+  personId: uuid("person_id").notNull().references(() => people.id, { onDelete: "restrict" }),
+  shareMinor: bigint("share_minor", { mode: "bigint" }).notNull(), shareType: splitShareType("share_type").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [index("splits_transaction_idx").on(table.transactionId), index("splits_person_idx").on(table.personId), check("splits_share_nonzero", sql`${table.shareMinor} <> 0`)]);
 
 export const entries = pgTable(
   "entries",

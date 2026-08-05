@@ -29,6 +29,7 @@ export interface TransactionHeader {
   source?: TxnSource;
   status?: TxnStatus;
   confidence?: number | null;
+  groupId?: string | null;
   sourceRef?: string | null;
   dedupeHash?: string | null;
   reducedKey?: string | null;
@@ -118,9 +119,9 @@ export async function postTransaction(
     const { rows } = await sql.query<{ id: string }>(
       `insert into transactions
          (user_id, occurred_at, payee, memo, source, status, confidence,
-          source_ref, dedupe_hash, reduced_key, seen_unbilled_at, posted_at,
+          group_id, source_ref, dedupe_hash, reduced_key, seen_unbilled_at, posted_at,
           ingest_event_id)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        returning id`,
       [
         header.userId,
@@ -130,6 +131,7 @@ export async function postTransaction(
         header.source ?? "manual",
         header.status ?? "confirmed",
         header.confidence ?? null,
+        header.groupId ?? null,
         header.sourceRef ?? null,
         header.dedupeHash ?? null,
         header.reducedKey ?? null,
