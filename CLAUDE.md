@@ -73,11 +73,10 @@ feed.
 do not exist yet: `recurring_rules`, `reminders`, `holdings`, `price_snapshots`, `net_worth_daily`,
 `attachments`.
 
-**Production database is behind local.** The `groups`/`group_members`/`splits` tables and the
-`transactions.group_id` column exist in `db/schema.sql` and in the local dev container, but have
-not been applied to the live Supabase database — `/friends` and `/split` will error on the
-deployed site until that DDL is run there by hand. This is a deliberate manual step, not
-automated by any agent, because it touches production data.
+**Production database is caught up.** As of 2026-08-05 the `groups`/`group_members`/`splits`
+tables and the `transactions.group_id` column have been applied to the live Supabase database by
+hand (run manually in the Supabase SQL editor, not by any agent — that stays a deliberate manual
+step whenever schema changes touch production). `/friends` and `/split` work on the deployed site.
 
 ### Deployment and databases
 
