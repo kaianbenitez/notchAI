@@ -104,7 +104,7 @@ export async function captureSplitExpense(
     ),
     verifyGroup(sql, input.userId, input.groupId),
   ]);
-  if (!["asset", "liability"].includes(paid.role) || paid.kind === "category")
+  if (!["asset", "liability"].includes(paid.role) || paid.kind === "category" || paid.kind === "receivable" || paid.kind === "payable")
     throw new SplitCaptureError(
       "pick an asset or liability account to pay from",
     );
@@ -244,7 +244,7 @@ export async function captureSettlement(
     account(sql, input.userId, input.cashAccountId, "account"),
     person(sql, input.userId, input.personId),
   ]);
-  if (cash.role !== "asset" || cash.kind === "category")
+  if (cash.role !== "asset" || cash.kind === "category" || cash.kind === "receivable" || cash.kind === "payable")
     throw new SplitCaptureError("pick an asset account to settle into");
   return postTransaction(
     sql,

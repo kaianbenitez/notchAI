@@ -12,7 +12,7 @@ export default async function FriendsPage() {
     listPeople(sql, userId, { includeArchived: true }),
     listAccounts(sql, userId, { roles: ["asset"], includeArchived: true }),
   ]));
-  const accounts = assets.filter((account) => account.archivedAt === null && account.kind !== "category");
+  const accounts = assets.filter((account) => account.archivedAt === null && account.kind !== "category" && account.kind !== "receivable" && account.kind !== "payable");
   const archivedFriendIds = new Set(assets.filter((account) => account.archivedAt !== null).map((account) => account.personId).filter((id): id is string => id !== null));
   return <FriendManager people={people} accounts={accounts} archivedFriendIds={[...archivedFriendIds]} />;
 }

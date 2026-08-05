@@ -187,3 +187,29 @@ it("rejects zero settlements, invalid share types, and foreign participants", as
     }),
   ).rejects.toThrow(/person/);
 });
+
+it("rejects a friend's receivable account for splits and settlements", async () => {
+  const category = await createCategory(db, { userId: U, name: "Dining" });
+  const ana = await createPerson(db, { userId: U, name: "Ana" });
+  await expect(
+    captureSplitExpense(db, {
+      userId: U,
+      occurredAt: "2026-08-01",
+      payee: "Dinner",
+      amount: "10",
+      categoryId: category.id,
+      accountId: ana.receivableAccountId,
+      shareType: "equal",
+      participants: [{ personId: ana.id }],
+    }),
+  ).rejects.toThrow(/asset or liability account/);
+  await expect(
+    captureSettlement(db, {
+      userId: U,
+      occurredAt: "2026-08-01",
+      cashAccountId: ana.receivableAccountId,
+      personId: ana.id,
+      amountMinor: 100,
+    }),
+  ).rejects.toThrow(/asset account/);
+});
