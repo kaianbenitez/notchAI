@@ -96,9 +96,22 @@ credentials are set in Vercel; the cron is confirmed working end-to-end in produ
 real run found 3 transactions awaiting review at `/review`.
 
 `db/schema.sql` defines `accounts`, `people`, `groups`, `group_members`, `splits`, `ingest_events`,
-`transactions`, `entries`, `budgets`, and two views. `PLAN.md` §3 describes six more tables that
-do not exist yet: `recurring_rules`, `reminders`, `holdings`, `price_snapshots`, `net_worth_daily`,
-`attachments`.
+`transactions`, `entries`, `budgets`, `recurring_rules`, `reminders`, `dismissed_bill_suggestions`,
+`capture_nudges`, `gmail_*`, `net_worth_labels`, `net_worth_snapshots`, `savings_goals`, and
+`net_worth_current` (a view). `PLAN.md` §3's automated-investment tables — `holdings`,
+`price_snapshots`, `net_worth_daily` — still do not exist; net worth is manual-entry only for now
+(see below), not the IBKR Flex sync M6 originally specified.
+
+Manual net worth tracking (`/net-worth`, 2026-08-07): lets the user log periodic PHP balances for
+money and assets Notch's own ledger has no visibility into — a savings account, a brokerage
+account, a car, house equity — plus savings goals with a progress bar linked to one of those
+balances (e.g. an emergency-fund target). Each balance update is an append-only snapshot
+(`net_worth_snapshots`), never an update-in-place, so a future net-worth-over-time chart can read
+the history for free. This is intentionally *not* automated: no brokerage API integration, no FX
+conversion — the user types in a PHP-equivalent figure themselves. Net worth shown is assets only;
+there is no liability tracking in this feature. This exists specifically because the user's stated
+bar for AI insights (below) is a conversational experience with full context on their financial
+position, and Notch's transaction ledger alone can't see money that never moves through it.
 
 **Production database is caught up.** As of 2026-08-05 the `groups`/`group_members`/`splits`
 tables and the `transactions.group_id` column have been applied to the live Supabase database.
@@ -198,7 +211,7 @@ A Codex run started from a Claude Code session **dies when that session exits.**
 ## Verify
 
 ```
-npm test     # 132 passing, PGlite, no database setup needed
+npm test     # 162 passing, PGlite, no database setup needed
 npm run build
 npm run lint
 ```
