@@ -6,24 +6,53 @@ import { NO_ERROR, type ActionState } from "../app/bills/action-state";
 import { archiveBillAction, createBillAction, markBillPaidAction, updateBillAction } from "../app/bills/actions";
 import type { AccountWithBalance } from "../accounts/repo";
 import { formatPeso } from "../money";
+import type { DetectedBill } from "../reminders/detect";
 import type { ReminderRule } from "../reminders/repo";
 
 const INPUT = "rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none";
 const BUTTON = "rounded-md px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50";
 
-interface Props { rules: ReminderRule[]; accounts: AccountWithBalance[]; categories: AccountWithBalance[]; today: string; }
+interface Props { rules: ReminderRule[]; accounts: AccountWithBalance[]; categories: AccountWithBalance[]; detected: DetectedBill[]; today: string; }
 
-export function BillManager({ rules, accounts, categories, today }: Props) {
+export function BillManager({ rules, accounts, categories, detected, today }: Props) {
   const [showArchived, setShowArchived] = useState(false);
   const visible = rules.filter((rule) => showArchived || rule.archivedAt === null);
   return <main className="mx-auto w-full max-w-3xl px-6 py-12">
     <header className="mb-8"><h1 className="text-3xl font-semibold tracking-tight text-slate-100">Bills</h1><p className="mt-2 text-sm text-slate-400">Track recurring bills and get Telegram reminders before they are due.</p></header>
+    {detected.length > 0 && <DetectedBills detected={detected} />}
     <CreateForm accounts={accounts} categories={categories} today={today} />
     <div className="mt-10">
       {visible.length === 0 ? <p className="rounded-lg border border-dashed border-slate-700 px-4 py-10 text-center text-sm text-slate-500">No bills yet. Add a recurring bill to start receiving reminders.</p> : <ul className="divide-y divide-slate-800 rounded-lg border border-slate-800">{visible.map((rule) => <BillRow key={rule.id} rule={rule} accounts={accounts} categories={categories} />)}</ul>}
       {rules.some((rule) => rule.archivedAt !== null) && <button type="button" onClick={() => setShowArchived((value) => !value)} className="mt-4 text-sm text-slate-400 underline underline-offset-4 hover:text-slate-200">{showArchived ? "Hide archived" : "Show archived"}</button>}
     </div>
   </main>;
+}
+
+function DetectedBills({ detected }: { detected: DetectedBill[] }) {
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const visible = detected.filter((candidate) => !dismissed.has(candidate.payee + candidate.accountId));
+  if (visible.length === 0) return null;
+  return <div className="mb-8 rounded-lg border border-emerald-800/50 bg-emerald-950/20 p-4">
+    <h2 className="text-sm font-medium text-emerald-300">Looks like a recurring bill</h2>
+    <p className="mt-1 text-xs text-slate-400">Spotted from your transaction history. Add the ones you want reminders for.</p>
+    <ul className="mt-3 space-y-2">{visible.map((candidate) => <DetectedBillRow key={candidate.payee + candidate.accountId} candidate={candidate} onDismiss={() => setDismissed((prev) => new Set(prev).add(candidate.payee + candidate.accountId))} />)}</ul>
+  </div>;
+}
+
+function DetectedBillRow({ candidate, onDismiss }: { candidate: DetectedBill; onDismiss: () => void }) {
+  const [state, submit, pending] = useActionState(async (previous: ActionState, form: FormData) => { const result = await createBillAction(previous, form); if (!result.error) onDismiss(); return result; }, NO_ERROR);
+  return <li className="flex flex-wrap items-center gap-3 rounded-md bg-slate-900/60 px-3 py-2">
+    <form action={submit} className="flex flex-1 flex-wrap items-center gap-3">
+      <input type="hidden" name="name" value={candidate.payee} /><input type="hidden" name="amount" value={formatPeso(candidate.suggestedAmountMinor)} />
+      <input type="hidden" name="accountId" value={candidate.accountId} /><input type="hidden" name="categoryId" value={candidate.categoryId} />
+      <input type="hidden" name="recurrencePreset" value={candidate.suggestedRecurrencePreset} /><input type="hidden" name="nextDueOn" value={candidate.suggestedNextDueOn} />
+      <span className="flex-1 text-sm text-slate-100">{candidate.payee}<span className="ml-2 text-xs text-slate-500">{candidate.occurrences}× seen, ~monthly</span></span>
+      <span className="tabular-nums text-sm text-slate-300">{formatPeso(candidate.suggestedAmountMinor)}</span>
+      <button type="submit" disabled={pending} className={`${BUTTON} bg-emerald-500 text-slate-950 hover:bg-emerald-400`}>{pending ? "Adding…" : "Add as bill"}</button>
+      <button type="button" onClick={onDismiss} className={`${BUTTON} text-slate-500 hover:text-slate-300`}>Dismiss</button>
+      {state.error && <ErrorNote message={state.error} />}
+    </form>
+  </li>;
 }
 
 function CreateForm({ accounts, categories, today }: Pick<Props, "accounts" | "categories" | "today">) {

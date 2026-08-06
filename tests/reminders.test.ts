@@ -6,7 +6,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAccount, createCategory } from "../src/accounts/repo";
 import { postTransaction } from "../src/ledger/post";
 import { reconcileDueRules, runDailyReminders } from "../src/reminders/cron";
+import { detectRecurringBills } from "../src/reminders/detect";
 import { rungForDate } from "../src/reminders/ladder";
+import { sendCaptureNudgeIfNeeded } from "../src/reminders/nudge";
 import { sendTelegramMessage } from "../src/notifications/telegram";
 import { nextOccurrence } from "../src/reminders/recurrence";
 import { createReminderRule, markReminderRulePaid } from "../src/reminders/repo";
@@ -164,6 +166,76 @@ describe("bill auto-reconciliation", () => {
 
     const { last_matched_txn_id } = (await db.query<{ last_matched_txn_id: string | null }>("select last_matched_txn_id from recurring_rules where id = $1", [bill.id])).rows[0];
     expect(last_matched_txn_id).toBeNull();
+  });
+});
+
+describe("recurring bill detection", () => {
+  async function paidExpense(occurredAt: string, payee: string, amountMinor: number): Promise<void> {
+    await postTransaction(db, { userId: USER, occurredAt, payee }, [
+      { accountId, amountMinor: -amountMinor },
+      { accountId: categoryId, amountMinor },
+    ]);
+  }
+
+  it("detects a stable monthly payee pattern", async () => {
+    for (const date of ["2026-05-10", "2026-06-10", "2026-07-10", "2026-08-10"]) await paidExpense(date, "Meralco", 150_000);
+
+    const detected = await detectRecurringBills(db, USER, "2026-08-15");
+    expect(detected).toHaveLength(1);
+    expect(detected[0]).toMatchObject({ payee: "Meralco", accountId, categoryId, suggestedAmountMinor: 150_000, occurrences: 4, suggestedRecurrencePreset: "monthly:10" });
+    expect(detected[0].suggestedNextDueOn).toBe("2026-09-10");
+  });
+
+  it("ignores irregular cadence and amounts that swing beyond tolerance", async () => {
+    await paidExpense("2026-05-01", "Random Store", 100_000);
+    await paidExpense("2026-06-20", "Random Store", 100_000);
+    await paidExpense("2026-08-05", "Random Store", 100_000);
+    await paidExpense("2026-06-01", "Sari-Sari", 100_000);
+    await paidExpense("2026-07-01", "Sari-Sari", 100_000);
+    await paidExpense("2026-08-01", "Sari-Sari", 250_000);
+
+    expect(await detectRecurringBills(db, USER, "2026-08-15")).toHaveLength(0);
+  });
+
+  it("does not suggest a payee already covered by an active rule", async () => {
+    await createReminderRule(db, { userId: USER, name: "Meralco", amountMinor: 150_000, accountId, categoryId, recurrencePreset: "monthly:10", nextDueOn: "2026-09-10" });
+    for (const date of ["2026-05-10", "2026-06-10", "2026-07-10", "2026-08-10"]) await paidExpense(date, "Meralco", 150_000);
+
+    expect(await detectRecurringBills(db, USER, "2026-08-15")).toHaveLength(0);
+  });
+
+  it("requires at least three occurrences", async () => {
+    await paidExpense("2026-07-10", "Netflix", 549_00);
+    await paidExpense("2026-08-10", "Netflix", 549_00);
+
+    expect(await detectRecurringBills(db, USER, "2026-08-15")).toHaveLength(0);
+  });
+});
+
+describe("daily capture nudge", () => {
+  async function backdate(occurredAt: string, createdAtIso: string): Promise<void> {
+    const txnId = await postTransaction(db, { userId: USER, occurredAt }, [
+      { accountId, amountMinor: -5000 },
+      { accountId: categoryId, amountMinor: 5000 },
+    ]);
+    await db.query("update transactions set created_at = $2 where id = $1", [txnId, createdAtIso]);
+  }
+
+  it("sends only when nothing has been logged yet today", async () => {
+    const send = vi.fn(async () => undefined);
+    expect(await sendCaptureNudgeIfNeeded(db, USER, "2026-08-05", send)).toBe(true);
+    expect(send).toHaveBeenCalledTimes(1);
+
+    await backdate("2026-08-05", "2026-08-05T10:00:00+08:00");
+
+    expect(await sendCaptureNudgeIfNeeded(db, USER, "2026-08-05", send)).toBe(false);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a transaction logged on a different day", async () => {
+    await backdate("2026-08-04", "2026-08-04T23:59:00+08:00");
+    const send = vi.fn(async () => undefined);
+    expect(await sendCaptureNudgeIfNeeded(db, USER, "2026-08-05", send)).toBe(true);
   });
 });
 

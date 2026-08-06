@@ -79,9 +79,23 @@ this hardening pass: statement formats other than BPI, and importing payments/cr
 already separates `payment_or_credit` rows from `charge` rows, but only charges are ever committed
 to the ledger — payments/credits are shown read-only and never posted).
 
+Bill reminders (`PLAN.md` §4.5, M3): `/bills` manages `recurring_rules` and delivers a daily
+Telegram reminder ladder (T-5d, T-1d, due date, overdue) via a single Vercel cron job
+(`/api/cron/reminders`, `src/reminders/cron.ts`, `src/reminders/ladder.ts`). Matching expense
+transactions auto-close a bill's cycle and advance `next_due_on` (`reconcileDueRules`) without
+the user pressing "Mark as paid," though that button still exists for cash/manual cases. Recurring
+bill auto-detection (`detectRecurringBills` in `src/reminders/detect.ts`) scans posted expense
+history for a stable monthly payee + funding-account pattern (3+ occurrences, ~28-31 day cadence,
+amount within 5%) and surfaces candidates on `/bills` with an "Add as bill" button that prefills
+the existing create-bill form; it skips payees already covered by an active rule. A separate daily
+cron (`/api/cron/capture-nudge`, `src/reminders/nudge.ts`) sends a Telegram nudge at 9pm Manila
+only if nothing has been logged that day. Not yet built: auto-detection only supports monthly
+cadence (weekly/biweekly bills must still be entered by hand), and detected candidates are
+advisory only — nothing is auto-promoted into a rule without the user clicking "Add as bill."
+
 `db/schema.sql` defines `accounts`, `people`, `groups`, `group_members`, `splits`, `ingest_events`,
-`transactions`, `entries`, `budgets`, and two views. `PLAN.md` §3 describes six more tables that
-do not exist yet: `recurring_rules`, `reminders`, `holdings`, `price_snapshots`, `net_worth_daily`,
+`transactions`, `entries`, `budgets`, `recurring_rules`, `reminders`, and two views. `PLAN.md` §3
+describes four more tables that do not exist yet: `holdings`, `price_snapshots`, `net_worth_daily`,
 `attachments`.
 
 **Production database is caught up.** As of 2026-08-05 the `groups`/`group_members`/`splits`
