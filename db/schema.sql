@@ -17,6 +17,7 @@ create type txn_source as enum (
 
 create type txn_status as enum ('confirmed', 'pending_review', 'stub', 'duplicate_merged');
 create type split_share_type as enum ('equal', 'exact', 'pct', 'shares');
+create type net_worth_category as enum ('cash', 'investment', 'property', 'vehicle', 'other');
 
 -- Categories are accounts with role expense/income and kind 'category'.
 -- Friend receivables/payables are accounts too. One table, so splits, debts,
@@ -356,3 +357,48 @@ create table gmail_ingest_items (
   constraint gmail_ingest_item_status check (status in ('pending_review', 'confirmed', 'dismissed', 'unrecognized'))
 );
 create index gmail_ingest_items_review_idx on gmail_ingest_items (user_id, status, created_at desc);
+
+-- Manual balances held outside the transaction ledger. Snapshots are append-only
+-- so a future net-worth chart can read their history without reconstructing it.
+create table net_worth_labels (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null,
+  name        text not null,
+  category    net_worth_category not null,
+  archived_at timestamptz,
+  created_at  timestamptz not null default now(),
+  unique (user_id, name)
+);
+
+create table net_worth_snapshots (
+  id            uuid primary key default gen_random_uuid(),
+  label_id      uuid not null references net_worth_labels (id) on delete cascade,
+  balance_minor bigint not null,
+  currency      char(3) not null default 'PHP',
+  as_of         date not null,
+  created_at    timestamptz not null default now(),
+
+  constraint net_worth_balance_nonnegative check (balance_minor >= 0)
+);
+create index net_worth_snapshots_label_idx on net_worth_snapshots (label_id, as_of desc, created_at desc);
+
+create view net_worth_current as
+select distinct on (ns.label_id)
+  ns.label_id, nl.user_id, nl.name as label, nl.category, ns.balance_minor, ns.currency, ns.as_of
+  from net_worth_snapshots ns
+  join net_worth_labels nl on nl.id = ns.label_id
+ where nl.archived_at is null
+ order by ns.label_id, ns.as_of desc, ns.created_at desc;
+
+create table savings_goals (
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid not null,
+  name            text not null,
+  target_minor    bigint not null,
+  currency        char(3) not null default 'PHP',
+  linked_label_id uuid references net_worth_labels (id) on delete set null,
+  archived_at     timestamptz,
+  created_at      timestamptz not null default now(),
+
+  constraint savings_goal_target_positive check (target_minor > 0)
+);

@@ -5,6 +5,7 @@ const NEXT_UP = [
   { href: "/accounts", label: "Accounts", blurb: "Wallets, banks, cards." },
   { href: "/categories", label: "Categories", blurb: "What you spend on." },
   { href: "/month", label: "Month", blurb: "Review this month's actuals." },
+  { href: "/net-worth", label: "Net worth", blurb: "Track manual assets and savings goals." },
 ];
 
 export default function Home() {

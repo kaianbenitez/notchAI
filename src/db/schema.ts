@@ -60,6 +60,7 @@ export const txnStatus = pgEnum("txn_status", [
 ]);
 
 export const splitShareType = pgEnum("split_share_type", ["equal", "exact", "pct", "shares"]);
+export const netWorthCategory = pgEnum("net_worth_category", ["cash", "investment", "property", "vehicle", "other"]);
 
 export const accounts = pgTable(
   "accounts",
@@ -286,3 +287,45 @@ export const gmailIngestItems = pgTable("gmail_ingest_items", {
   status: text("status").notNull().default("pending_review"), transactionId: uuid("transaction_id").references(() => transactions.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), resolvedAt: timestamp("resolved_at", { withTimezone: true }),
 }, (table) => [uniqueIndex("gmail_ingest_items_user_message_unique_idx").on(table.userId, table.gmailMessageId), index("gmail_ingest_items_review_idx").on(table.userId, table.status, table.createdAt.desc())]);
+
+export const netWorthLabels = pgTable("net_worth_labels", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull(),
+  name: text("name").notNull(),
+  category: netWorthCategory("category").notNull(),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [uniqueIndex("net_worth_labels_user_name_unique").on(table.userId, table.name)]);
+
+export const netWorthSnapshots = pgTable("net_worth_snapshots", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  labelId: uuid("label_id").notNull().references(() => netWorthLabels.id, { onDelete: "cascade" }),
+  balanceMinor: bigint("balance_minor", { mode: "bigint" }).notNull(),
+  currency: char("currency", { length: 3 }).notNull().default("PHP"),
+  asOf: date("as_of").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  check("net_worth_balance_nonnegative", sql`${table.balanceMinor} >= 0`),
+  index("net_worth_snapshots_label_idx").on(table.labelId, table.asOf.desc(), table.createdAt.desc()),
+]);
+
+export const netWorthCurrent = pgView("net_worth_current", {
+  labelId: uuid("label_id"),
+  userId: uuid("user_id"),
+  label: text("label"),
+  category: netWorthCategory("category"),
+  balanceMinor: bigint("balance_minor", { mode: "bigint" }),
+  currency: char("currency", { length: 3 }),
+  asOf: date("as_of"),
+}).existing();
+
+export const savingsGoals = pgTable("savings_goals", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull(),
+  name: text("name").notNull(),
+  targetMinor: bigint("target_minor", { mode: "bigint" }).notNull(),
+  currency: char("currency", { length: 3 }).notNull().default("PHP"),
+  linkedLabelId: uuid("linked_label_id").references(() => netWorthLabels.id, { onDelete: "set null" }),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [check("savings_goal_target_positive", sql`${table.targetMinor} > 0`)]);
