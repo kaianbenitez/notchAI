@@ -80,8 +80,9 @@ already separates `payment_or_credit` rows from `charge` rows, but only charges 
 to the ledger — payments/credits are shown read-only and never posted).
 
 Gmail bank-alert ingestion is built as a daily Vercel cron (`/api/cron/gmail-ingest`). Its first
-backfill is bounded to the last 30 days and it searches only BPI Online, MariBank Alerts, and the
-currently unsupported BPI InstaPay sender. The supported
+run picks up at most the 20 most recent matching emails; older mail is out of scope for automatic
+import and needs manual capture or a future dedicated backfill tool. It searches only BPI Online,
+MariBank Alerts, and the currently unsupported BPI InstaPay sender. The supported
 BPI InstaPay/bill-pay and MariBank incoming-transfer templates retain every raw email in
 `ingest_events`; unfamiliar shapes remain unrecognized rather than guessed. `/review` is a
 persistent inbox: resolving an alert saves the exact funding-account descriptor and payee/category
