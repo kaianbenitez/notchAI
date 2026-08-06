@@ -27,7 +27,7 @@ export async function listGmailMessages(afterHistoryId?: string | null): Promise
   } else {
     let pageToken: string | undefined;
     do {
-      const page = await gmail.users.messages.list({ userId: "me", q: GMAIL_QUERY, maxResults: 500, pageToken });
+      const page = await gmail.users.messages.list({ userId: "me", q: `${GMAIL_QUERY} newer_than:30d`, maxResults: 500, pageToken });
       for (const message of page.data.messages ?? []) if (message.id) ids.add(message.id);
       pageToken = page.data.nextPageToken ?? undefined;
     } while (pageToken);
