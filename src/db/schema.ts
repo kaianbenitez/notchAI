@@ -260,3 +260,29 @@ export const captureNudges = pgTable("capture_nudges", {
   sentAt: timestamp("sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const gmailSyncCursors = pgTable("gmail_sync_cursors", {
+  userId: uuid("user_id").primaryKey(), historyId: text("history_id"),
+  lastSuccessfulAt: timestamp("last_successful_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const gmailAccountAliases = pgTable("gmail_account_aliases", {
+  userId: uuid("user_id").notNull(), descriptor: text("descriptor").notNull(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "restrict" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [uniqueIndex("gmail_account_aliases_pkey").on(table.userId, table.descriptor)]);
+
+export const gmailPayeeAliases = pgTable("gmail_payee_aliases", {
+  userId: uuid("user_id").notNull(), descriptor: text("descriptor").notNull(),
+  categoryId: uuid("category_id").notNull().references(() => accounts.id, { onDelete: "restrict" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [uniqueIndex("gmail_payee_aliases_pkey").on(table.userId, table.descriptor)]);
+
+export const gmailIngestItems = pgTable("gmail_ingest_items", {
+  id: uuid("id").defaultRandom().primaryKey(), userId: uuid("user_id").notNull(), gmailMessageId: text("gmail_message_id").notNull(),
+  ingestEventId: uuid("ingest_event_id").notNull().references(() => ingestEvents.id, { onDelete: "restrict" }),
+  accountDescriptor: text("account_descriptor"), payeeDescriptor: text("payee_descriptor"), occurredAt: date("occurred_at"), amountMinor: bigint("amount_minor", { mode: "bigint" }),
+  direction: text("direction"), accountId: uuid("account_id").references(() => accounts.id, { onDelete: "restrict" }), categoryId: uuid("category_id").references(() => accounts.id, { onDelete: "restrict" }),
+  status: text("status").notNull().default("pending_review"), transactionId: uuid("transaction_id").references(() => transactions.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+}, (table) => [uniqueIndex("gmail_ingest_items_user_message_unique_idx").on(table.userId, table.gmailMessageId), index("gmail_ingest_items_review_idx").on(table.userId, table.status, table.createdAt.desc())]);

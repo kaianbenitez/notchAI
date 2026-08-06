@@ -1,0 +1,14 @@
+import { listAccounts } from "../../accounts/repo";
+import { currentUserId } from "../../auth";
+import { withDb } from "../../db/client";
+import { listGmailReviewItems } from "../../ingest/gmail/repo";
+import { formatPeso } from "../../money";
+import { dismissGmailItemAction, resolveGmailItemAction } from "./actions";
+
+export const dynamic = "force-dynamic";
+
+export default async function ReviewPage() {
+  const userId = currentUserId();
+  const [items, accounts, expenseCategories, incomeCategories] = await withDb((sql) => Promise.all([listGmailReviewItems(sql, userId), listAccounts(sql, userId, { roles: ["asset", "liability"] }), listAccounts(sql, userId, { roles: ["expense"], kinds: ["category"] }), listAccounts(sql, userId, { roles: ["income"], kinds: ["category"] })]));
+  return <main className="mx-auto w-full max-w-3xl px-6 py-8"><h1 className="text-2xl font-semibold">Review inbox</h1><p className="mt-2 text-sm text-slate-400">Emails remain outside your balances until you confirm their account and category. Confirming remembers both exact descriptors for future alerts.</p>{items.length === 0 ? <p className="mt-8 text-slate-500">Nothing needs review.</p> : <div className="mt-6 space-y-4">{items.map((row) => <article key={row.id} className="border border-slate-800 bg-slate-900/40 p-4"><div className="flex flex-wrap justify-between gap-2"><div><p className="font-medium">{row.payeeDescriptor}</p><p className="text-sm text-slate-400">{row.direction === "in" ? "Money in" : "Money out"} · {row.accountDescriptor} · {row.occurredAt}</p></div><p className="tabular-nums">{row.amountMinor === null ? "—" : formatPeso(row.amountMinor)}</p></div><form action={resolveGmailItemAction} className="mt-4 grid gap-3 sm:grid-cols-2"><input type="hidden" name="id" value={row.id} /><label className="grid gap-1 text-sm text-slate-300">Account<select name="accountId" defaultValue={row.accountId ?? ""} required className="border border-slate-700 bg-slate-950 px-3 py-2"><option value="" disabled>Choose account</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label><label className="grid gap-1 text-sm text-slate-300">Category<select name="categoryId" defaultValue={row.categoryId ?? ""} required className="border border-slate-700 bg-slate-950 px-3 py-2"><option value="" disabled>Choose category</option>{(row.direction === "in" ? incomeCategories : expenseCategories).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><div className="flex gap-3"><button className="bg-emerald-500 px-3 py-2 text-sm font-medium text-slate-950">Confirm</button><button formAction={dismissGmailItemAction} className="border border-slate-700 px-3 py-2 text-sm">Dismiss</button></div></form></article>)}</div>}</main>;
+}

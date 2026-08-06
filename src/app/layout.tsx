@@ -19,6 +19,7 @@ const NAV = [
   { href: "/budgets", label: "Budgets" },
   { href: "/bills", label: "Bills" },
   { href: "/import", label: "Import" },
+  { href: "/review", label: "Review" },
   { href: "/changelog", label: "Changelog" },
 ];
 

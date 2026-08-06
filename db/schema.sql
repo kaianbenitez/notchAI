@@ -309,3 +309,50 @@ create table capture_nudges (
   sent_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+-- Gmail ingestion keeps its delivery checkpoint and unresolved source material
+-- separate from the ledger. A queued email has no entries until the user has
+-- resolved both sides, so it cannot affect balances prematurely.
+create table gmail_sync_cursors (
+  user_id uuid primary key,
+  history_id text,
+  last_successful_at timestamptz not null default now()
+);
+
+create table gmail_account_aliases (
+  user_id uuid not null,
+  descriptor text not null,
+  account_id uuid not null references accounts (id) on delete restrict,
+  created_at timestamptz not null default now(),
+  primary key (user_id, descriptor)
+);
+
+create table gmail_payee_aliases (
+  user_id uuid not null,
+  descriptor text not null,
+  category_id uuid not null references accounts (id) on delete restrict,
+  created_at timestamptz not null default now(),
+  primary key (user_id, descriptor)
+);
+
+create table gmail_ingest_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
+  gmail_message_id text not null,
+  ingest_event_id uuid not null references ingest_events (id) on delete restrict,
+  account_descriptor text,
+  payee_descriptor text,
+  occurred_at date,
+  amount_minor bigint,
+  direction text,
+  account_id uuid references accounts (id) on delete restrict,
+  category_id uuid references accounts (id) on delete restrict,
+  status text not null default 'pending_review',
+  transaction_id uuid references transactions (id) on delete set null,
+  created_at timestamptz not null default now(),
+  resolved_at timestamptz,
+  unique (user_id, gmail_message_id),
+  constraint gmail_ingest_item_direction check (direction is null or direction in ('out', 'in')),
+  constraint gmail_ingest_item_status check (status in ('pending_review', 'confirmed', 'dismissed', 'unrecognized'))
+);
+create index gmail_ingest_items_review_idx on gmail_ingest_items (user_id, status, created_at desc);

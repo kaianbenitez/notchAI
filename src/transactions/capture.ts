@@ -2,6 +2,7 @@
 
 import { parseAmountToMinor } from "../money";
 import { postTransaction, type Sql } from "../ledger/post";
+import { dedupeHash } from "../import/match";
 
 export type CaptureDirection = "out" | "in";
 
@@ -53,8 +54,8 @@ function requiredText(value: string, label: string): string {
 }
 
 /**
- * Validate and post one manual expense or income. This intentionally leaves
- * dedupe fields absent: the importer owns that format and its matching rules.
+ * Validate and post one manual expense or income. Compatible sources share the
+ * same hash so a later bank email/statement cannot silently duplicate it.
  */
 export async function captureTransaction(sql: Sql, input: CaptureInput): Promise<string> {
   if (input.direction !== "out" && input.direction !== "in") {
@@ -107,6 +108,7 @@ export async function captureTransaction(sql: Sql, input: CaptureInput): Promise
         source: "manual",
         status: "confirmed",
         sourceRef,
+        dedupeHash: dedupeHash(payee, amountMinor, "PHP", input.occurredAt),
       },
       input.direction === "out"
         ? [

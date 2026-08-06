@@ -79,19 +79,36 @@ this hardening pass: statement formats other than BPI, and importing payments/cr
 already separates `payment_or_credit` rows from `charge` rows, but only charges are ever committed
 to the ledger — payments/credits are shown read-only and never posted).
 
+Gmail bank-alert ingestion is built as a daily Vercel cron (`/api/cron/gmail-ingest`). It searches
+only BPI Online, MariBank Alerts, and the currently unsupported BPI InstaPay sender. The supported
+BPI InstaPay/bill-pay and MariBank incoming-transfer templates retain every raw email in
+`ingest_events`; unfamiliar shapes remain unrecognized rather than guessed. `/review` is a
+persistent inbox: resolving an alert saves the exact funding-account descriptor and payee/category
+descriptor so future matching emails post through `postTransaction`; unresolved mail never affects
+the ledger. BPI InstaPay's separate sender remains raw-only until a synthetic fixture/template is
+available. Bootstrap Gmail once with `npm exec tsx scripts/gmail-auth.ts`; it needs
+`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` (default
+`http://localhost:3000/oauth2callback`) and prints `GOOGLE_REFRESH_TOKEN` for `.env`/Vercel.
+The four new `gmail_*` tables are in local `db/schema.sql` only and still need to be applied
+to the live Supabase database before this cron can run against production.
+
 `db/schema.sql` defines `accounts`, `people`, `groups`, `group_members`, `splits`, `ingest_events`,
 `transactions`, `entries`, `budgets`, and two views. `PLAN.md` §3 describes six more tables that
 do not exist yet: `recurring_rules`, `reminders`, `holdings`, `price_snapshots`, `net_worth_daily`,
 `attachments`.
 
 **Production database is caught up.** As of 2026-08-05 the `groups`/`group_members`/`splits`
-tables and the `transactions.group_id` column have been applied to the live Supabase database by
-hand (run manually in the Supabase SQL editor, not by any agent — that stays a deliberate manual
-step whenever schema changes touch production). `/friends` and `/split` work on the deployed site.
+tables and the `transactions.group_id` column have been applied to the live Supabase database.
+`/friends` and `/split` work on the deployed site.
 
-The later `dismissed_bill_suggestions` and `capture_nudges` tables are present in local
-`db/schema.sql` only and still need to be applied by hand to Supabase before deploying the bill
-suggestions and capture-nudge crons.
+**Schema changes to production may now go through an agent via the Supabase MCP server**
+(policy changed 2026-08-06 — previously this was manual-only via the Supabase SQL editor).
+Still run `npm test` / `npm run build` first, still confirm the exact SQL with the user before
+running it against production, and still update this file's state afterward — the guardrail
+that changed is *who* runs the SQL, not the care taken beforehand.
+
+The `dismissed_bill_suggestions` and `capture_nudges` tables have also been applied to the live
+Supabase database (2026-08-06), so both are now caught up with `db/schema.sql`.
 
 ### Deployment and databases
 
