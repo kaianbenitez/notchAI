@@ -91,8 +91,9 @@ the ledger. BPI InstaPay's separate sender remains raw-only until a synthetic fi
 available. Bootstrap Gmail once with `npm exec tsx scripts/gmail-auth.ts`; it needs
 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` (default
 `http://localhost:3000/oauth2callback`) and prints `GOOGLE_REFRESH_TOKEN` for `.env`/Vercel.
-The four new `gmail_*` tables are in local `db/schema.sql` only and still need to be applied
-to the live Supabase database before this cron can run against production.
+The four `gmail_*` tables are applied to the live Supabase database (2026-08-06) and the Google
+credentials are set in Vercel; the cron is confirmed working end-to-end in production — its first
+real run found 3 transactions awaiting review at `/review`.
 
 `db/schema.sql` defines `accounts`, `people`, `groups`, `group_members`, `splits`, `ingest_events`,
 `transactions`, `entries`, `budgets`, and two views. `PLAN.md` §3 describes six more tables that
