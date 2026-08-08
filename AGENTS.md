@@ -1,6 +1,6 @@
 # budget-app — agent instructions
 
-A personal budgeting app for a single user in the Philippines. **Read `PLAN.md` completely
+A personal budgeting app for a single user in the Philippines. Start with `AI-CONTEXT.md` and `AI-NOW.md`. **Read `PLAN.md` completely
 before writing any code.** It is the specification and it is already decided — it is not a
 starting point for discussion. `HANDOFF.md` has the build order and the kickoff prompt.
 
