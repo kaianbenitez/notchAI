@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 
 const PRIMARY_NAV = [
   { href: "/", label: "Home", shortLabel: "Home" },
   { href: "/log", label: "Log", shortLabel: "Log" },
   { href: "/month", label: "Month", shortLabel: "Month" },
   { href: "/budgets", label: "Budgets", shortLabel: "Budgets" },
-  { href: "/accounts", label: "Accounts", shortLabel: "More" },
 ];
 
 const SECONDARY_NAV = [
@@ -30,6 +30,7 @@ function isActive(pathname: string, href: string): boolean {
 
 export function AppNavigation() {
   const pathname = usePathname();
+  const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
 
   return <>
     <header className="border-b border-slate-800/80 bg-slate-950/85 backdrop-blur md:sticky md:top-0 md:z-20">
@@ -54,7 +55,15 @@ export function AppNavigation() {
         {PRIMARY_NAV.map((item) => <Link key={item.href} href={item.href} className={`rounded-md px-1 py-2 text-center text-xs font-medium transition-colors ${isActive(pathname, item.href) ? "bg-slate-800 text-emerald-300" : "text-slate-400 hover:text-white"}`}>
           {item.shortLabel}
         </Link>)}
+        <button type="button" aria-expanded={isMobileMoreOpen} onClick={() => setIsMobileMoreOpen((open) => !open)} className={`rounded-md px-1 py-2 text-center text-xs font-medium transition-colors ${isMobileMoreOpen || SECONDARY_NAV.some((item) => isActive(pathname, item.href)) ? "bg-slate-800 text-emerald-300" : "text-slate-400 hover:text-white"}`}>
+          More
+        </button>
       </div>
+      {isMobileMoreOpen ? <div className="mx-auto mt-2 grid max-w-lg grid-cols-2 gap-1 border-t border-slate-800 pt-2">
+        {SECONDARY_NAV.map((item) => <Link key={item.href} href={item.href} onClick={() => setIsMobileMoreOpen(false)} className={`rounded-md px-3 py-2 text-sm transition-colors ${isActive(pathname, item.href) ? "bg-slate-800 text-emerald-300" : "text-slate-300 hover:bg-slate-800 hover:text-white"}`}>
+          {item.label}
+        </Link>)}
+      </div> : null}
     </nav>
   </>;
 }
