@@ -262,7 +262,7 @@ export function CaptureForm({ accounts, today, initialDirection, recent: initial
   }, [speechListening]);
 
   return <>
-    <form onSubmit={submit} className="border border-slate-800 bg-slate-900/40 p-5 sm:p-6">
+    <form onSubmit={submit} className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 shadow-xl shadow-slate-950/20 sm:p-6">
       <div className="mb-5 flex border-b border-slate-700">
         {(["out", "in"] as const).map((choice) => <a key={choice} href={choice === "out" ? "/log" : "/log?direction=in"} className={`border-b-2 px-4 py-2 text-sm font-medium ${direction === choice ? "border-emerald-400 text-slate-100" : "border-transparent text-slate-400 hover:text-slate-200"}`}>
           {choice === "out" ? "Money out" : "Money in"}
@@ -296,7 +296,7 @@ export function CaptureForm({ accounts, today, initialDirection, recent: initial
           <input ref={payeeRef} name="payee" required maxLength={200} autoComplete="off" value={values.payee} onChange={(event) => setValues({ ...values, payee: event.target.value })} placeholder={direction === "out" ? "e.g. Jollibee" : "e.g. Salary"} className="border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 placeholder:text-slate-600" />
         </label>
         <label className="grid gap-1.5 text-sm text-slate-300">Amount
-          <input name="amount" required inputMode="decimal" autoComplete="off" value={values.amount} onChange={(event) => setValues({ ...values, amount: event.target.value })} placeholder="0.00" className="border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 placeholder:text-slate-600" />
+          <input name="amount" required inputMode="decimal" autoComplete="off" value={values.amount} onChange={(event) => setValues({ ...values, amount: event.target.value })} placeholder="0.00" className="border border-slate-700 bg-slate-950 px-3 py-2 text-lg font-medium tabular-nums text-slate-100 placeholder:text-slate-600" />
         </label>
         <label className="grid gap-1.5 text-sm text-slate-300">Category
           <select name="categoryId" required value={values.categoryId} onChange={(event) => setValues({ ...values, categoryId: event.target.value })} className="border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100">
@@ -316,7 +316,7 @@ export function CaptureForm({ accounts, today, initialDirection, recent: initial
       </div>
       {error && <p role="alert" className="mt-4 text-sm text-red-400">{error}</p>}
       {notice && <p role="status" className="mt-4 text-sm text-amber-300">{notice}</p>}
-      <button type="submit" disabled={pending} className="mt-5 bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-emerald-400 disabled:opacity-60">
+      <button type="submit" disabled={pending} className="mt-5 w-full rounded-md bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-300 disabled:opacity-60 sm:w-auto">
         {pending ? "Saving…" : "Save transaction"}
       </button>
     </form>

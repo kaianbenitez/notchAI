@@ -10,4 +10,13 @@
 
 body {
   margin: 0;
+  background:
+    radial-gradient(circle at top, rgb(20 83 45 / 0.16), transparent 28rem),
+    #020617;
+}
+
+@media (max-width: 767px) {
+  body {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  }
 }
