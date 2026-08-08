@@ -14,7 +14,7 @@ const PRIMARY_NAV = [
 const SECONDARY_NAV = [
   { href: "/accounts", label: "Accounts" },
   { href: "/categories", label: "Categories" },
-  { href: "/friends", label: "Friends" },
+  { href: "/friends", label: "Contacts" },
   { href: "/groups", label: "Groups" },
   { href: "/split", label: "Split" },
   { href: "/net-worth", label: "Net worth" },

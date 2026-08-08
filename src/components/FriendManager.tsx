@@ -15,9 +15,9 @@ export function FriendManager({ people, accounts, archivedFriendIds, activity }:
   const archived = new Set(archivedFriendIds);
   const ordered = [...people].sort((a, b) => Number(archived.has(a.id)) - Number(archived.has(b.id)));
   return <main className="mx-auto w-full max-w-3xl px-6 py-12">
-    <header className="mb-8"><h1 className="text-3xl font-semibold tracking-tight text-slate-100">Friends</h1><p className="mt-2 text-sm text-slate-400">Track what you owe each other when you share a bill.</p></header>
+    <header className="mb-8"><h1 className="text-3xl font-semibold tracking-tight text-slate-100">Contacts</h1><p className="mt-2 text-sm text-slate-400">Add anyone you share money with, then track what you owe each other.</p></header>
     <CreateForm />
-    <div className="mt-10">{ordered.length === 0 ? <p className="rounded-lg border border-dashed border-slate-700 px-4 py-10 text-center text-sm text-slate-500">No friends yet. Add someone before logging a shared bill.</p> : <ul className="divide-y divide-slate-800 rounded-lg border border-slate-800">{ordered.map((person) => <FriendRow key={person.id} person={person} accounts={accounts} archived={archived.has(person.id)} />)}</ul>}</div>
+    <div className="mt-10">{ordered.length === 0 ? <p className="rounded-lg border border-dashed border-slate-700 px-4 py-10 text-center text-sm text-slate-500">No contacts yet. Add someone before logging a shared bill.</p> : <ul className="divide-y divide-slate-800 rounded-lg border border-slate-800">{ordered.map((person) => <FriendRow key={person.id} person={person} accounts={accounts} archived={archived.has(person.id)} />)}</ul>}</div>
     <RecentActivity activity={activity} />
   </main>;
 }
@@ -35,7 +35,7 @@ function ActivityRow({ item }: { item: FriendActivity }) {
 
 function CreateForm() {
   const [state, submit, pending] = useActionState(createPersonAction, NO_ERROR);
-  return <form action={submit} className="rounded-lg border border-slate-800 bg-slate-900/40 p-4"><div className="flex flex-wrap items-center gap-3"><input name="name" required placeholder="Friend's name" className={`${INPUT} min-w-40 flex-1`} /><input name="contact" placeholder="Contact (optional)" className={`${INPUT} min-w-40 flex-1`} /><button type="submit" disabled={pending} className={`${BUTTON} bg-emerald-500 text-slate-950 hover:bg-emerald-400`}>{pending ? "Adding…" : "Add friend"}</button></div>{state.error && <ErrorNote message={state.error} />}</form>;
+  return <form action={submit} className="rounded-lg border border-slate-800 bg-slate-900/40 p-4"><div className="flex flex-wrap items-center gap-3"><input name="name" required placeholder="Contact name" className={`${INPUT} min-w-40 flex-1`} /><input name="contact" placeholder="Phone, @handle, or note (optional)" className={`${INPUT} min-w-40 flex-1`} /><button type="submit" disabled={pending} className={`${BUTTON} bg-emerald-500 text-slate-950 hover:bg-emerald-400`}>{pending ? "Adding…" : "Add contact"}</button></div>{state.error && <ErrorNote message={state.error} />}</form>;
 }
 
 function FriendRow({ person, accounts, archived }: { person: PersonWithBalance; accounts: AccountWithBalance[]; archived: boolean }) {
