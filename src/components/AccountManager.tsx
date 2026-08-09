@@ -7,6 +7,7 @@
  */
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 
 import type { AccountWithBalance } from "../accounts/repo";
 import { NO_ERROR, type ActionState } from "../app/accounts/action-state";
@@ -208,7 +209,7 @@ function AccountRow({
         ) : (
           <>
             <span className="flex-1 text-sm text-slate-100">
-              {account.name}
+              {account.kind === "credit_card" ? <Link href={`/accounts/${account.id}`} className="hover:text-emerald-300">{account.name}</Link> : account.name}
               {archived && (
                 <span className="ml-2 text-xs uppercase tracking-wide text-slate-500">
                   archived

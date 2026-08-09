@@ -295,6 +295,54 @@ create table reminders (
   unique (rule_id, fire_at)
 );
 
+-- A card statement is an external obligation, intentionally separate from the
+-- ledger. Its total is what the bank says is due, including shared purchases;
+-- recording it must never rewrite transactions, balances, or split shares.
+create table credit_card_statement_settings (
+  user_id    uuid not null,
+  account_id uuid not null references accounts (id) on delete cascade,
+  cutoff_day smallint not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  primary key (user_id, account_id),
+  constraint credit_card_statement_cutoff_day check (cutoff_day between 1 and 28)
+);
+
+create table credit_card_statements (
+  id                     uuid primary key default gen_random_uuid(),
+  user_id                uuid not null,
+  account_id             uuid not null references accounts (id) on delete restrict,
+  period_starts_on       date not null,
+  period_ends_on         date not null,
+  statement_amount_minor bigint not null,
+  due_on                 date not null,
+  status                 text not null default 'active',
+  paid_transaction_id    uuid references transactions (id) on delete set null,
+  paid_at                timestamptz,
+  created_at             timestamptz not null default now(),
+
+  constraint credit_card_statement_amount_positive check (statement_amount_minor > 0),
+  constraint credit_card_statement_status check (status in ('active', 'paid')),
+  constraint credit_card_statement_period check (period_starts_on <= period_ends_on),
+  unique (user_id, account_id, period_ends_on)
+);
+create index credit_card_statements_active_idx on credit_card_statements (user_id, status, due_on);
+create unique index credit_card_statements_one_active_per_card_idx on credit_card_statements (user_id, account_id)
+  where status = 'active';
+
+create table credit_card_statement_reminders (
+  id           uuid primary key default gen_random_uuid(),
+  statement_id uuid not null references credit_card_statements (id) on delete cascade,
+  rung         text not null,
+  fire_at      date not null,
+  sent_at      timestamptz,
+  created_at   timestamptz not null default now(),
+
+  constraint credit_card_statement_reminder_rung check (rung in ('t_minus_5','t_minus_1','due','overdue')),
+  unique (statement_id, fire_at)
+);
+
 -- A dismissal is separate from a rule: declining a suggestion must never make
 -- it look like a real bill in the user-facing bill list.
 create table dismissed_bill_suggestions (

@@ -7,6 +7,7 @@ import {
   check,
   date,
   index,
+  integer,
   numeric,
   pgEnum,
   pgTable,
@@ -261,6 +262,49 @@ export const captureNudges = pgTable("capture_nudges", {
   sentAt: timestamp("sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const creditCardStatementSettings = pgTable("credit_card_statement_settings", {
+  userId: uuid("user_id").notNull(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  cutoffDay: integer("cutoff_day").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("credit_card_statement_settings_user_account_idx").on(table.userId, table.accountId),
+  check("credit_card_statement_cutoff_day", sql`${table.cutoffDay} between 1 and 28`),
+]);
+
+export const creditCardStatements = pgTable("credit_card_statements", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "restrict" }),
+  periodStartsOn: date("period_starts_on").notNull(),
+  periodEndsOn: date("period_ends_on").notNull(),
+  statementAmountMinor: bigint("statement_amount_minor", { mode: "bigint" }).notNull(),
+  dueOn: date("due_on").notNull(),
+  status: text("status").notNull().default("active"),
+  paidTransactionId: uuid("paid_transaction_id").references(() => transactions.id, { onDelete: "set null" }),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  check("credit_card_statement_amount_positive", sql`${table.statementAmountMinor} > 0`),
+  check("credit_card_statement_status", sql`${table.status} in ('active', 'paid')`),
+  check("credit_card_statement_period", sql`${table.periodStartsOn} <= ${table.periodEndsOn}`),
+  index("credit_card_statements_active_idx").on(table.userId, table.status, table.dueOn),
+  uniqueIndex("credit_card_statements_one_active_per_card_idx").on(table.userId, table.accountId).where(sql`${table.status} = 'active'`),
+]);
+
+export const creditCardStatementReminders = pgTable("credit_card_statement_reminders", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  statementId: uuid("statement_id").notNull().references(() => creditCardStatements.id, { onDelete: "cascade" }),
+  rung: text("rung").notNull(),
+  fireAt: date("fire_at").notNull(),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  check("credit_card_statement_reminder_rung", sql`${table.rung} in ('t_minus_5', 't_minus_1', 'due', 'overdue')`),
+  uniqueIndex("credit_card_statement_reminders_statement_fire_at_idx").on(table.statementId, table.fireAt),
+]);
 
 export const gmailSyncCursors = pgTable("gmail_sync_cursors", {
   userId: uuid("user_id").primaryKey(), historyId: text("history_id"),
