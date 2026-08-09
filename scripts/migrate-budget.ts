@@ -272,15 +272,15 @@ async function main(): Promise<void> {
       const foreign = sourceCurrency !== "PHP";
       const fxRate = foreign ? 58 : 1;
       const amountBase = Math.round(amount * fxRate);
-      const accountAmount = foreign && account.currency === "USD" ? amount : amountBase;
-      const accountCurrency = foreign && account.currency === "USD" ? "USD" : "PHP";
-      const accountSign = refund ? amount : isIncome ? amount : -amount;
-      const accountEntryAmount = accountCurrency === "USD" ? accountSign : (refund || isIncome ? amountBase : -amountBase);
+      const accountCurrency = account.currency === "USD" ? "USD" : "PHP";
+      const accountFxRate = accountCurrency === "USD" ? 58 : 1;
+      const accountAmount = accountCurrency === "USD" ? Math.round(amountBase / accountFxRate) : amountBase;
+      const accountEntryAmount = refund || isIncome ? accountAmount : -accountAmount;
       const categoryEntryAmount = refund ? -amountBase : isIncome ? -amountBase : amountBase;
       const payee = row.Note.trim() || row.Subcategory.trim() || category.name;
       const { rows: ingestRows } = await migration.query<{ id: string }>(`insert into ingest_events (user_id, kind, account_id, raw_payload) values ($1, 'csv', $2, $3) returning id`, [userId, account.id, JSON.stringify(row)]);
       await postTransaction(migration, { userId, occurredAt: row.Date, payee, memo: row.Tag.trim() ? `Tag: ${row.Tag.trim()}` : null, source: "csv", status: "confirmed", ingestEventId: ingestRows[0].id, sourceRef: `budget-migration:ledger:${index}`, dedupeHash: dedupeHash(payee, accountAmount, accountCurrency, row.Date) }, [
-        { accountId: account.id, amountMinor: accountEntryAmount, currency: accountCurrency, ...(accountCurrency === "USD" ? { fxRateToBase: fxRate } : {}) },
+        { accountId: account.id, amountMinor: accountEntryAmount, currency: accountCurrency, ...(accountCurrency === "USD" ? { fxRateToBase: accountFxRate } : {}) },
         { accountId: category.id, amountMinor: categoryEntryAmount },
       ]);
       ledgerPosted += 1;

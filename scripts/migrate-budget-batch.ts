@@ -55,12 +55,12 @@ function normalizedLedger(rows: LedgerRow[]) {
     const amount = parseAmountToMinor(row.Price);
     const foreign = row.Currency.trim().toUpperCase() !== "PHP";
     const amountBase = Math.round(amount * (foreign ? FX_RATE : 1));
-    const accountCurrency = foreign && account.currency === "USD" ? "USD" : "PHP";
-    const accountAmount = foreign && account.currency === "USD" ? amount : amountBase;
+    const accountCurrency = account.currency === "USD" ? "USD" : "PHP";
+    const accountAmount = accountCurrency === "USD" ? Math.round(amountBase / FX_RATE) : amountBase;
     const refund = role === "refund";
     const income = role === "income";
     const accountEntryAmount = accountCurrency === "USD"
-      ? (refund ? amount : income ? amount : -amount)
+      ? (refund ? accountAmount : income ? accountAmount : -accountAmount)
       : (refund || income ? amountBase : -amountBase);
     return [{
       sourceRef: `budget-migration:ledger:${index}`,
