@@ -16,6 +16,7 @@ import {
   createAccountAction,
   deleteAccountAction,
   renameAccountAction,
+  updateAccountBalanceAction,
   unarchiveAccountAction,
 } from "../app/accounts/actions";
 import { formatPeso } from "../money";
@@ -258,8 +259,13 @@ function EditForm({
     },
     NO_ERROR,
   );
+  const [balanceState, saveBalance, balancePending] = useActionState(
+    updateAccountBalanceAction,
+    NO_ERROR,
+  );
 
   return (
+    <div className="flex flex-1 flex-wrap items-center gap-3">
     <form action={submit} className="flex flex-1 flex-wrap items-center gap-3">
       <input type="hidden" name="id" value={account.id} />
       <input
@@ -302,6 +308,20 @@ function EditForm({
 
       {state.error && <ErrorNote message={state.error} />}
     </form>
+    {(account.role === "asset" || account.role === "liability") && (
+      <form action={saveBalance} className="flex basis-full flex-wrap items-center gap-2 border-t border-slate-800 pt-3">
+        <input type="hidden" name="id" value={account.id} />
+        <label className="text-xs text-slate-400">New balance ({account.role === "liability" ? "owed" : "PHP"})
+          <input name="balance" required inputMode="decimal" defaultValue={formatPeso(account.displayBalanceMinor).replace("₱", "")} className={`${INPUT} ml-2 w-32`} />
+        </label>
+        <input type="date" name="balanceDate" required defaultValue={new Date().toISOString().slice(0, 10)} className={INPUT} aria-label="Balance date" />
+        <button type="submit" disabled={balancePending} className={`${BUTTON} bg-sky-500 text-slate-950 hover:bg-sky-400`}>
+          {balancePending ? "Updating…" : "Update balance"}
+        </button>
+        {balanceState.error && <ErrorNote message={balanceState.error} />}
+      </form>
+    )}
+    </div>
   );
 }
 

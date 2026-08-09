@@ -11,6 +11,7 @@ import {
   deleteAccount,
   getAccount,
   listAccounts,
+  setAccountBalance,
   unarchiveAccount,
   updateAccount,
 } from "../src/accounts/repo.js";
@@ -146,6 +147,21 @@ describe("category hierarchy", () => {
 });
 
 describe("listing", () => {
+  it("updates an asset or liability balance through a balanced adjustment", async () => {
+    const cash = await createAccount(db, { userId: USER, name: "Cash", role: "asset", kind: "cash" });
+    const card = await createAccount(db, { userId: USER, name: "Card", role: "liability", kind: "credit_card" });
+
+    await setAccountBalance(db, USER, cash.id, 125_050, "2026-08-09");
+    await setAccountBalance(db, USER, card.id, 50_000, "2026-08-09");
+
+    expect((await getAccount(db, USER, cash.id))?.displayBalanceMinor).toBe(125_050);
+    expect((await getAccount(db, USER, card.id))?.displayBalanceMinor).toBe(50_000);
+    const { rows } = await db.query<{ total: string }>(
+      "select coalesce(sum(amount_minor), 0)::text as total from entries",
+    );
+    expect(rows[0].total).toBe("0");
+  });
+
   it("reports balances from the ledger", async () => {
     const gcash = await createAccount(db, {
       userId: USER,

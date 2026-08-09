@@ -10,6 +10,7 @@ import {
   deleteAccount,
   unarchiveAccount,
   updateAccount,
+  setAccountBalance,
   type AccountKind,
   type AccountRole,
 } from "../../accounts/repo";
@@ -94,6 +95,23 @@ export async function renameAccountAction(
         // The parent select is only rendered for categories; leave it alone when absent.
         ...(form.has("parentId") ? { parentId: parentId === "" ? null : parentId } : {}),
       }),
+    );
+  });
+}
+
+export async function updateAccountBalanceAction(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const id = field(form, "id");
+  const balance = field(form, "balance");
+  const date = field(form, "balanceDate");
+
+  return run(async () => {
+    const { parseAmountToMinor } = await import("../../money");
+    await withDb((sql) =>
+      setAccountBalance(sql, currentUserId(), id, parseAmountToMinor(balance), date)
+        .then(() => undefined),
     );
   });
 }

@@ -10,7 +10,7 @@
  * express in a CHECK (a category's parent must be a category of the same role).
  */
 
-import type { Sql } from "../ledger/post";
+import { postTransaction, type Sql } from "../ledger/post";
 
 export type AccountRole = "asset" | "liability" | "expense" | "income" | "equity";
 
@@ -348,6 +348,67 @@ export async function getAccount(
 export interface UpdateAccountInput {
   name?: string;
   parentId?: string | null;
+}
+
+/** Adjust an asset/liability to a user-entered displayed balance. */
+export async function setAccountBalance(
+  sql: Sql,
+  userId: string,
+  id: string,
+  targetDisplayMinor: number,
+  occurredAt: string,
+): Promise<AccountWithBalance> {
+  if (!Number.isSafeInteger(targetDisplayMinor) || targetDisplayMinor < 0) {
+    throw new AccountError("balance must be a non-negative amount");
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(occurredAt)) {
+    throw new AccountError("balance date must be a valid date");
+  }
+
+  const existing = await getAccount(sql, userId, id);
+  if (!existing) throw new AccountError("that account does not exist");
+  if (existing.role !== "asset" && existing.role !== "liability") {
+    throw new AccountError("only asset and liability balances can be edited here");
+  }
+  if (existing.currency !== "PHP") {
+    throw new AccountError("foreign-currency balances must be updated through an import");
+  }
+
+  const targetLedgerMinor = existing.role === "liability" ? -targetDisplayMinor : targetDisplayMinor;
+  const deltaMinor = targetLedgerMinor - existing.balanceMinor;
+  if (deltaMinor !== 0) {
+    const { rows } = await sql.query<AccountRow>(
+      `select ${SELECT_COLUMNS} from accounts a
+        where user_id = $1 and role = 'equity' and lower(name) = lower($2)
+          and archived_at is null limit 1`,
+      [userId, "Opening Balance Equity"],
+    );
+    const equity = rows[0]
+      ? toAccount(rows[0])
+      : await createAccount(sql, {
+          userId,
+          name: "Opening Balance Equity",
+          role: "equity",
+          kind: "cash",
+          currency: "PHP",
+        });
+
+    await postTransaction(sql, {
+      userId,
+      occurredAt,
+      payee: "Balance adjustment",
+      memo: `Set ${existing.name} balance`,
+      source: "manual",
+      status: "confirmed",
+    }, [
+      { accountId: existing.id, amountMinor: deltaMinor },
+      { accountId: equity.id, amountMinor: -deltaMinor },
+    ]);
+  }
+
+  const updated = await getAccount(sql, userId, id);
+  if (!updated) throw new AccountError("that account disappeared while updating");
+  return updated;
 }
 
 /**
