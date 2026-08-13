@@ -33,7 +33,8 @@ export function AppNavigation() {
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
 
   useEffect(() => {
-    setIsMobileMoreOpen(false);
+    const timeout = window.setTimeout(() => setIsMobileMoreOpen(false), 0);
+    return () => window.clearTimeout(timeout);
   }, [pathname]);
 
   return <>
