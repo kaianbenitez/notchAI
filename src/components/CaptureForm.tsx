@@ -328,6 +328,7 @@ export function CaptureForm({ accounts, today, initialDirection, recent: initial
           <span className="font-medium">{transaction.payee ?? "—"}{transaction.pending && <span className="ml-2 text-xs font-normal text-amber-300">Pending sync</span>}{transaction.rejectionReason && <span className="ml-2 text-xs font-normal text-red-400">Couldn&apos;t sync: {transaction.rejectionReason}</span>}</span>
           <span className="tabular-nums text-slate-100">{transaction.pendingAmount ?? formatPeso(transaction.amountMinor)}</span>
           <span className="col-start-2 text-slate-400">{transaction.category} · {transaction.account}</span>
+          {!transaction.pending && <a href={`/log/edit/${transaction.id}`} className="text-xs text-slate-500 transition-colors hover:text-slate-200">Edit</a>}
         </li>)}
       </ul>}
     </section>
