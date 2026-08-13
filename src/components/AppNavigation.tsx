@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const PRIMARY_NAV = [
   { href: "/", label: "Home", shortLabel: "Home" },
@@ -31,6 +31,10 @@ function isActive(pathname: string, href: string): boolean {
 export function AppNavigation() {
   const pathname = usePathname();
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
+
+  useEffect(() => {
+    setIsMobileMoreOpen(false);
+  }, [pathname]);
 
   return <>
     <header className="border-b border-slate-800/80 bg-slate-950/85 backdrop-blur md:sticky md:top-0 md:z-20">
