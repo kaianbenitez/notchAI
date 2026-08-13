@@ -18,6 +18,10 @@ see `git log`.
   page's recent list). Amount is intentionally not editable yet — it would need to go through
   a proper reposting flow to stay ledger-balanced; delete and re-log for now if the amount was
   wrong. Only simple two-leg manual captures are supported (not splits or multi-leg statements).
+- Added an install prompt: a dismissible banner offers a native "Install" button on Chrome/
+  Android/desktop (via `beforeinstallprompt`) and shows the manual Share → Add to Home Screen
+  steps on iOS Safari, where no such API exists. Hides itself once installed or dismissed
+  (remembered in `localStorage`), and never shows if already running standalone.
 
 ## 2026-08-10
 
