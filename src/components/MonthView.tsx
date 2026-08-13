@@ -99,6 +99,9 @@ export function MonthView({ month, previousMonth, nextMonth, summary, categories
                   <span className="text-slate-400">{transaction.category}</span>
                   <span className="text-slate-400">{transaction.account}</span>
                   <span className="ml-auto tabular-nums text-slate-200">{signedPeso(transaction.amountMinor)}</span>
+                  <Link href={`/log/edit/${transaction.id}`} className="text-xs text-slate-500 transition-colors hover:text-slate-200">
+                    Edit
+                  </Link>
                 </li>
               ))}
             </ul>

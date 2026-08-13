@@ -13,6 +13,11 @@ see `git log`.
   everything from today onward is written at time of shipping.
 - Disable Gmail email-scan cron (ingest code/data left in place for easy re-enable)
 - Fold mobile More nav panel automatically on route change
+- Added the ability to edit an already-logged transaction: date, payee, memo, category, and
+  funding account are editable from `/log/edit/[id]` (linked from the month view and the log
+  page's recent list). Amount is intentionally not editable yet — it would need to go through
+  a proper reposting flow to stay ledger-balanced; delete and re-log for now if the amount was
+  wrong. Only simple two-leg manual captures are supported (not splits or multi-leg statements).
 
 ## 2026-08-10
 
