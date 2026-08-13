@@ -11,6 +11,10 @@ see `git log`.
 
 - Established this changelog. Backfilled the two weeks below from `git log` for continuity;
   everything from today onward is written at time of shipping.
+- Added an install prompt: a dismissible banner offers a native "Install" button on Chrome/
+  Android/desktop (via `beforeinstallprompt`) and shows the manual Share → Add to Home Screen
+  steps on iOS Safari, where no such API exists. Hides itself once installed or dismissed
+  (remembered in `localStorage`), and never shows if already running standalone.
 
 ## 2026-08-10
 
