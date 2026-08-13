@@ -11,6 +11,7 @@ see `git log`.
 
 - Established this changelog. Backfilled the two weeks below from `git log` for continuity;
   everything from today onward is written at time of shipping.
+- Fold mobile More nav panel automatically on route change
 
 ## 2026-08-10
 
